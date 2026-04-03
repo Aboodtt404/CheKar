@@ -17,7 +17,7 @@ class Settings(BaseModel):
 
     # vLLM / Qwen
     vlm_base_url: str = "http://localhost:8000/v1"
-    vlm_model: str = "Qwen/Qwen3.5-122B-A10B-Instruct"
+    vlm_model: str = "Qwen/Qwen3.5-27B-FP8"
     vlm_max_tokens: int = 4096
     vlm_temperature: float = 0.1
 
