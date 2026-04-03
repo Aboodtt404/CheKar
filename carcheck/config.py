@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from pydantic import BaseModel
 
@@ -10,15 +11,15 @@ class Settings(BaseModel):
     cost_db_path: Path = Path(__file__).parent / "costs" / "cost_db.json"
 
     # YOLO
-    yolo_weights: str = "yolo11x-seg.pt"
+    yolo_weights: str = os.getenv("CARCHECK_YOLO_WEIGHTS", "yolo11x-seg.pt")
     yolo_confidence: float = 0.25
     yolo_iou: float = 0.45
-    yolo_img_size: int = 1024
-    yolo_device: str = "cpu"  # run YOLO on CPU to leave GPU for VLM
+    yolo_img_size: int = int(os.getenv("CARCHECK_YOLO_IMGSZ", "1024"))
+    yolo_device: str = os.getenv("CARCHECK_YOLO_DEVICE", "cpu")
 
     # vLLM / Qwen
-    vlm_base_url: str = "http://localhost:8000/v1"
-    vlm_model: str = "Qwen/Qwen3.5-27B-FP8"
+    vlm_base_url: str = os.getenv("CARCHECK_VLM_URL", "http://localhost:8000/v1")
+    vlm_model: str = os.getenv("CARCHECK_VLM_MODEL", "Qwen/Qwen3.5-27B-FP8")
     vlm_max_tokens: int = 2048
     vlm_temperature: float = 0.1
 

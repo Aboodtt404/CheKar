@@ -10,6 +10,8 @@ dist/
 *.pth
 *.onnx
 .env
+!.env.local
+!.env.vps
 .superpowers/
 docs/superpowers/
 *.pdf
