@@ -172,5 +172,27 @@ def detect(
     console.print(f"\nAnnotated photos saved to: {annotated_dir}")
 
 
+@app.command()
+def create_key(
+    name: str = typer.Argument(..., help="Name for the API key (e.g., 'Ahmed - beta tester')"),
+) -> None:
+    """Create a new API key for a beta tester."""
+    import asyncio
+    import secrets
+    from carcheck.api.database import Database
+
+    key = secrets.token_urlsafe(32)
+    db = Database("data/carcheck.db")
+
+    async def _create():
+        await db.init()
+        await db.create_api_key(key, name)
+        await db.close()
+
+    asyncio.run(_create())
+    print(f"API key created for '{name}':")
+    print(f"  {key}")
+
+
 if __name__ == "__main__":
     app()
