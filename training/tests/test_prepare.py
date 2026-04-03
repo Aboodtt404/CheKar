@@ -66,12 +66,19 @@ def test_compute_image_hash(tmp_path):
     assert compute_image_hash(img1) == compute_image_hash(img2)
 
 def test_deduplicate_images(tmp_path):
+    import numpy as np
     img_a = tmp_path / "a.jpg"
     img_b = tmp_path / "b.jpg"
     img_c = tmp_path / "c.jpg"
-    Image.new("RGB", (640, 640), (128, 128, 128)).save(img_a)
-    Image.new("RGB", (640, 640), (128, 128, 128)).save(img_b)
-    Image.new("RGB", (640, 640), (255, 0, 0)).save(img_c)
+    # a and b are identical textured images
+    np.random.seed(42)
+    arr = np.random.randint(0, 255, (640, 640, 3), dtype=np.uint8)
+    Image.fromarray(arr).save(img_a)
+    Image.fromarray(arr).save(img_b)  # duplicate of a
+    # c is a completely different textured image
+    np.random.seed(999)
+    arr2 = np.random.randint(0, 255, (640, 640, 3), dtype=np.uint8)
+    Image.fromarray(arr2).save(img_c)
     unique = deduplicate_images([img_a, img_b, img_c], threshold=5)
     assert len(unique) == 2
     assert img_c in unique

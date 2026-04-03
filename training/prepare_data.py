@@ -68,14 +68,14 @@ def filter_small_images(image_paths: list[Path], min_dim: int = 400) -> list[Pat
 
 def compute_image_hash(image_path: Path) -> str:
     img = Image.open(image_path)
-    return str(imagehash.colorhash(img))
+    return str(imagehash.phash(img))
 
 
 def deduplicate_images(image_paths: list[Path], threshold: int = 5) -> list[Path]:
     seen_hashes: list[imagehash.ImageHash] = []
     unique: list[Path] = []
     for p in image_paths:
-        h = imagehash.colorhash(Image.open(p))
+        h = imagehash.phash(Image.open(p))
         is_dup = False
         for existing_hash in seen_hashes:
             if h - existing_hash < threshold:
