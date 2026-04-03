@@ -85,3 +85,61 @@ def deduplicate_images(image_paths: list[Path], threshold: int = 5) -> list[Path
             seen_hashes.append(h)
             unique.append(p)
     return unique
+
+
+def create_class_vector(label_path: Path, num_classes: int = 6) -> list[int]:
+    vector = [0] * num_classes
+    if not label_path.exists():
+        return vector
+    for line in label_path.read_text().strip().split("\n"):
+        if not line.strip():
+            continue
+        cls_id = int(line.strip().split()[0])
+        if cls_id < num_classes:
+            vector[cls_id] = 1
+    return vector
+
+
+def stratified_split(merged_dir: Path, output_dir: Path, train_ratio: float = 0.8, val_ratio: float = 0.1) -> dict:
+    import numpy as np
+    from iterstrat.ml_stratifiers import MultilabelStratifiedShuffleSplit
+    import shutil
+
+    images_dir = merged_dir / "all" / "images"
+    labels_dir = merged_dir / "all" / "labels"
+    image_paths = sorted(p for p in images_dir.glob("*") if p.suffix.lower() in {".jpg", ".jpeg", ".png"})
+
+    vectors = [create_class_vector(labels_dir / f"{p.stem}.txt") for p in image_paths]
+
+    X = np.arange(len(image_paths)).reshape(-1, 1)
+    y = np.array(vectors)
+
+    test_ratio = 1.0 - train_ratio - val_ratio
+    splitter1 = MultilabelStratifiedShuffleSplit(n_splits=1, test_size=test_ratio, random_state=42)
+    trainval_idx, test_idx = next(splitter1.split(X, y))
+
+    val_fraction = val_ratio / (train_ratio + val_ratio)
+    splitter2 = MultilabelStratifiedShuffleSplit(n_splits=1, test_size=val_fraction, random_state=42)
+    train_sub_idx, val_sub_idx = next(splitter2.split(X[trainval_idx], y[trainval_idx]))
+    train_idx = trainval_idx[train_sub_idx]
+    val_idx = trainval_idx[val_sub_idx]
+
+    stats = {"train": 0, "val": 0, "test": 0}
+    for split_name, indices in [("train", train_idx), ("val", val_idx), ("test", test_idx)]:
+        split_imgs = output_dir / split_name / "images"
+        split_lbls = output_dir / split_name / "labels"
+        split_imgs.mkdir(parents=True, exist_ok=True)
+        split_lbls.mkdir(parents=True, exist_ok=True)
+        for i in indices:
+            img_path = image_paths[i]
+            lbl_path = labels_dir / f"{img_path.stem}.txt"
+            shutil.copy2(img_path, split_imgs / img_path.name)
+            if lbl_path.exists():
+                shutil.copy2(lbl_path, split_lbls / lbl_path.name)
+            else:
+                (split_lbls / f"{img_path.stem}.txt").write_text("")
+            stats[split_name] += 1
+
+    yaml_content = f"path: {output_dir}\ntrain: train/images\nval: val/images\ntest: test/images\n\nnames:\n  0: dent\n  1: scratch\n  2: crack\n  3: glass_shatter\n  4: lamp_broken\n  5: tire_flat\n\nnc: 6\n"
+    (output_dir / "data.yaml").write_text(yaml_content)
+    return stats
