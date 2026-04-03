@@ -115,6 +115,7 @@ class VLMAnalyzer:
             ],
             max_tokens=settings.vlm_max_tokens,
             temperature=settings.vlm_temperature,
+            extra_body={"chat_template_kwargs": {"enable_thinking": False}},
         )
         return response.choices[0].message.content
 
