@@ -11,7 +11,7 @@ class Settings(BaseModel):
     cost_db_path: Path = Path(__file__).parent / "costs" / "cost_db.json"
 
     # YOLO
-    yolo_weights: str = os.getenv("CARCHECK_YOLO_WEIGHTS", "yolo11x-seg.pt")
+    yolo_weights: str = os.getenv("CARCHECK_YOLO_WEIGHTS", "yolo11x-finetuned.pt")
     yolo_confidence: float = 0.25
     yolo_iou: float = 0.45
     yolo_img_size: int = int(os.getenv("CARCHECK_YOLO_IMGSZ", "1024"))
