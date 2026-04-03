@@ -68,8 +68,8 @@ def inspect(
         ensure_ascii=False,
     )
 
-    console.print("  Call 1/3: Exterior analysis...")
-    exterior_findings = vlm.analyze_exterior(
+    console.print("  Call 1/3: Exterior analysis (cross-checking YOLO)...")
+    classified_detections, exterior_findings = vlm.analyze_exterior(
         exterior_photos, car_model, year, mileage, dets_json,
     )
 
@@ -80,7 +80,7 @@ def inspect(
 
     console.print("Merging results...")
     all_findings, all_detections = merge_results(
-        detections_per_image, exterior_findings, interior_findings, region,
+        detections_per_image, classified_detections, exterior_findings, interior_findings, region,
     )
 
     trust_score = calculate_trust_score(all_detections, all_findings)

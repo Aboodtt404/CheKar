@@ -72,8 +72,15 @@ def test_full_pipeline_mock(inspection_photos: Path, tmp_path: Path):
         ),
     ]
 
+    # Simulate Qwen cross-checking: confirm YOLO's classes
+    classified_detections = [
+        {"region_id": 0, "class_en": "dent", "class_ar": "خبطة", "severity": "minor", "confidence": "high"},
+        {"region_id": 1, "class_en": "dent", "class_ar": "خبطة", "severity": "major", "confidence": "high"},
+        {"region_id": 2, "class_en": "scratch", "class_ar": "خدش", "severity": "minor", "confidence": "high"},
+    ]
+
     all_findings, all_dets = merge_results(
-        detections_per_image, exterior_findings, [],
+        detections_per_image, classified_detections, exterior_findings, [],
     )
     assert len(all_findings) == 4
     assert len(all_dets) == 3

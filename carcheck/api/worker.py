@@ -78,10 +78,10 @@ def run_inspection(inspection_id: str):
             ensure_ascii=False,
         )
 
-        exterior_findings = vlm.analyze_exterior(exterior_photos, car_model, year, mileage, dets_json)
+        classified_detections, exterior_findings = vlm.analyze_exterior(exterior_photos, car_model, year, mileage, dets_json)
         interior_findings, metadata = vlm.analyze_interior(interior_photos, car_model, year, mileage) if interior_photos else ([], {})
 
-        all_findings, all_detections = merge_results(detections_per_image, exterior_findings, interior_findings, region)
+        all_findings, all_detections = merge_results(detections_per_image, classified_detections, exterior_findings, interior_findings, region)
         trust_score = calculate_trust_score(all_detections, all_findings)
 
         cost_db_text = settings.cost_db_path.read_text(encoding="utf-8")

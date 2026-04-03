@@ -16,6 +16,25 @@ def _load_prompt(name: str) -> str:
     return path.read_text(encoding="utf-8")
 
 
+def _strip_class_from_detections(detections_json: str) -> str:
+    """Strip class labels from YOLO detections to avoid biasing Qwen.
+
+    Keeps only: region_id, bbox coordinates, confidence, mask_area_pct.
+    Removes: class_name, class_name_ar, class_id.
+    """
+    detections = json.loads(detections_json)
+    stripped = []
+    for i, det in enumerate(detections):
+        stripped.append({
+            "region_id": i,
+            "bbox": det.get("bbox", []),
+            "confidence": det.get("confidence", 0),
+            "mask_area_pct": det.get("mask_area_pct", 0),
+            "image_path": det.get("image_path", ""),
+        })
+    return json.dumps(stripped, ensure_ascii=False)
+
+
 def build_exterior_prompt(
     car_model: str,
     year: int,
@@ -23,11 +42,12 @@ def build_exterior_prompt(
     yolo_detections_json: str,
 ) -> str:
     template = _load_prompt("exterior_analysis")
+    stripped_json = _strip_class_from_detections(yolo_detections_json)
     return template.format(
         car_model=car_model,
         year=year,
         mileage=mileage,
-        yolo_detections_json=yolo_detections_json,
+        detection_regions_json=stripped_json,
     )
 
 
@@ -120,13 +140,23 @@ class VLMAnalyzer:
         return response.choices[0].message.content
 
     def analyze_exterior(self, image_paths, car_model, year, mileage, yolo_detections_json):
+        """Analyze exterior photos. Returns (classified_detections, additional_findings).
+
+        classified_detections: list of dicts with region_id + Qwen's class label
+        additional_findings: list of Finding objects for things Qwen found beyond YOLO
+        """
         system = "أنت خبير فحص سيارات مصري. رد بـ JSON فقط."
         user_text = build_exterior_prompt(car_model, year, mileage, yolo_detections_json)
         raw = self._call(system, user_text, image_paths)
         parsed = parse_vlm_json_response(raw)
-        findings = []
-        for f in parsed.get("exterior_findings", []):
-            findings.append(Finding(
+
+        # Qwen's classification of each YOLO detection region
+        classified = parsed.get("classified_detections", [])
+
+        # Additional findings Qwen found beyond YOLO detections
+        additional_findings = []
+        for f in parsed.get("additional_findings", []):
+            additional_findings.append(Finding(
                 type=f.get("type", ""),
                 type_en=f.get("type_en", ""),
                 location=f.get("location", ""),
@@ -138,7 +168,8 @@ class VLMAnalyzer:
                 finding_key=f.get("finding_key", ""),
                 note_ar=f.get("description_ar", ""),
             ))
-        return findings
+
+        return classified, additional_findings
 
     def analyze_interior(self, image_paths, car_model, year, mileage):
         system = "أنت خبير فحص سيارات مصري. رد بـ JSON فقط."
