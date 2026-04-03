@@ -11,4 +11,5 @@ dist/
 *.onnx
 .env
 .superpowers/
+docs/superpowers/
 *.pdf
