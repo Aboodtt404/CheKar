@@ -143,3 +143,87 @@ def stratified_split(merged_dir: Path, output_dir: Path, train_ratio: float = 0.
     yaml_content = f"path: {output_dir}\ntrain: train/images\nval: val/images\ntest: test/images\n\nnames:\n  0: dent\n  1: scratch\n  2: crack\n  3: glass_shatter\n  4: lamp_broken\n  5: tire_flat\n\nnc: 6\n"
     (output_dir / "data.yaml").write_text(yaml_content)
     return stats
+
+
+def run_pipeline(datasets_dir: Path, output_dir: Path, max_negatives: int = 500) -> None:
+    import yaml
+    from training.remap_config import CARDD_CLASSES
+    from collections import Counter
+
+    merged_dir = output_dir / "_merged"
+    print("=" * 60)
+    print("CarCheck YOLO Fine-Tuning Data Pipeline")
+    print("=" * 60)
+
+    damage_datasets = {
+        "dammage-detection-in-car": datasets_dir / "dammage-detection-in-car",
+        "car-damaged-severity-detection": datasets_dir / "car-damaged-severity-detection",
+        "car-damage-4-classes": datasets_dir / "car-damage-4-classes",
+    }
+
+    for name, path in damage_datasets.items():
+        print(f"\nProcessing {name}...")
+        stats = process_dataset(path, name, merged_dir)
+        print(f"  Images: {stats['images']}, With labels: {stats['with_labels']}, Background: {stats['background']}")
+
+    print(f"\nSelecting {max_negatives} hard negatives from car-parts...")
+    parts_dir = datasets_dir / "car-parts-ulbml"
+    parts_yaml = parts_dir / "data.yaml"
+    class_names = yaml.safe_load(parts_yaml.read_text())["names"]
+
+    from training.select_negatives import select_hard_negatives
+    n_neg = select_hard_negatives(parts_dir, merged_dir, class_names, max_negatives)
+    print(f"  Selected {n_neg} hard negative images")
+
+    print("\nFiltering small images (<400px)...")
+    all_images = sorted((merged_dir / "all" / "images").glob("*"))
+    kept = filter_small_images(all_images, min_dim=400)
+    removed = len(all_images) - len(kept)
+    print(f"  Removed {removed} small images, kept {len(kept)}")
+
+    kept_stems = {p.stem for p in kept}
+    for img in all_images:
+        if img.stem not in kept_stems:
+            img.unlink()
+            lbl = merged_dir / "all" / "labels" / f"{img.stem}.txt"
+            if lbl.exists():
+                lbl.unlink()
+
+    print("\nDeduplicating images...")
+    remaining_images = sorted((merged_dir / "all" / "images").glob("*"))
+    unique = deduplicate_images(remaining_images, threshold=5)
+    dups = len(remaining_images) - len(unique)
+    print(f"  Removed {dups} duplicates, kept {len(unique)}")
+
+    unique_stems = {p.stem for p in unique}
+    for img in remaining_images:
+        if img.stem not in unique_stems:
+            img.unlink()
+            lbl = merged_dir / "all" / "labels" / f"{img.stem}.txt"
+            if lbl.exists():
+                lbl.unlink()
+
+    print("\nSplitting dataset (80/10/10 stratified)...")
+    final_dir = output_dir / "training_data"
+    stats = stratified_split(merged_dir, final_dir)
+    print(f"  Train: {stats['train']}, Val: {stats['val']}, Test: {stats['test']}")
+
+    print("\nClass distribution (train):")
+    class_counts = Counter()
+    for lbl in sorted((final_dir / "train" / "labels").glob("*.txt")):
+        for line in lbl.read_text().strip().split("\n"):
+            if line.strip():
+                cls_id = int(line.strip().split()[0])
+                class_counts[cls_id] += 1
+    for cls_id, name in sorted(CARDD_CLASSES.items()):
+        print(f"  {name}: {class_counts.get(cls_id, 0)}")
+
+    print(f"\nDataset ready at: {final_dir}")
+    print(f"data.yaml: {final_dir / 'data.yaml'}")
+
+
+if __name__ == "__main__":
+    import sys
+    datasets_dir = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("quality_check")
+    output_dir = Path(sys.argv[2]) if len(sys.argv) > 2 else Path(".")
+    run_pipeline(datasets_dir, output_dir)
