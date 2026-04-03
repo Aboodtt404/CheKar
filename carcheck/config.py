@@ -14,6 +14,7 @@ class Settings(BaseModel):
     yolo_confidence: float = 0.25
     yolo_iou: float = 0.45
     yolo_img_size: int = 1024
+    yolo_device: str = "cpu"  # run YOLO on CPU to leave GPU for VLM
 
     # vLLM / Qwen
     vlm_base_url: str = "http://localhost:8000/v1"

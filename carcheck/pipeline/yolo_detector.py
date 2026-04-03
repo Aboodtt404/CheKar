@@ -91,6 +91,7 @@ class YOLODetector:
             conf=settings.yolo_confidence,
             iou=settings.yolo_iou,
             imgsz=settings.yolo_img_size,
+            device=settings.yolo_device,
             verbose=False,
         )
 
