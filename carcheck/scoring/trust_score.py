@@ -76,11 +76,7 @@ def calculate_trust_score(
 
     weighted_sum = sum(s.score * s.weight for s in sub_scores.values())
 
-    # Correlated penalty: body damage combined with accident findings compounds risk
-    if body.deductions and accident.deductions:
-        weighted_sum -= 2
-
-    # Critical multiplier: document fraud invalidates the inspection
+    # Critical findings (odometer fraud, fake year/model) tank the entire score
     if has_critical_finding:
         weighted_sum *= _CRITICAL_MULTIPLIER
 

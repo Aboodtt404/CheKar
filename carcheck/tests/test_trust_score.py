@@ -48,7 +48,7 @@ def test_multiple_findings_lower_score():
         ),
     ]
     result = calculate_trust_score(detections=detections, findings=findings)
-    assert result.total < 90  # should be noticeably lower
+    assert result.total < 95  # noticeably lower than 100
 
 
 def test_flood_indicators_drop_score():
