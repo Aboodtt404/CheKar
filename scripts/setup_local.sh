@@ -18,14 +18,21 @@ MODELS_DIR="carcheck/data/models"
 mkdir -p "$MODELS_DIR"
 python3 -c "
 from ultralytics import YOLO
+import shutil
 model = YOLO('yolo11n.pt')  # auto-downloads ~6MB nano model
-print('YOLO11n downloaded')
+shutil.copy('yolo11n.pt', '$MODELS_DIR/yolo11n.pt')
+print('YOLO11n downloaded to $MODELS_DIR/')
 "
 
 # 3. Install Ollama (if not present)
 if ! command -v ollama &>/dev/null; then
     echo ""
-    echo "Installing Ollama..."
+    echo "Installing Ollama (requires sudo)..."
+    # Install zstd first if missing (needed by Ollama installer)
+    if ! command -v zstd &>/dev/null; then
+        echo "Installing zstd dependency..."
+        sudo apt-get install -y zstd 2>/dev/null || sudo dnf install -y zstd 2>/dev/null || echo "Please install zstd manually: sudo apt-get install zstd"
+    fi
     curl -fsSL https://ollama.com/install.sh | sh
 fi
 
@@ -34,19 +41,15 @@ echo ""
 echo "Pulling Qwen3.5 4B model (~2.5GB download)..."
 ollama pull qwen3.5:4b
 
-# 5. Load env
+# 5. Done
 echo ""
 echo "=== Setup Complete ==="
 echo ""
-echo "To start local services:"
-echo "  ollama serve                     # terminal 1 (if not already running)"
-echo "  source .env.local                # load local config"
-echo "  carcheck detect ./test_photos/   # YOLO only test"
-echo "  carcheck inspect ./test_photos/ -m 'Nissan Sunny' -y 2019 -k 85000  # full pipeline"
+echo "To run CheKar:"
+echo "  source .venv/bin/activate          # activate Python environment"
+echo "  source .env.local                  # load local config"
+echo "  carcheck detect ./test_photos/     # YOLO only test"
+echo "  carcheck inspect ./photos/ -m 'Nissan Sunny' -y 2019 -k 85000  # full pipeline"
 echo ""
-echo "Local config uses:"
-echo "  YOLO: yolo11n.pt (nano, CPU, 640px)"
-echo "  VLM:  qwen3.5:4b via Ollama (2.5GB RAM)"
-echo ""
-echo "Note: Ollama serves an OpenAI-compatible API at localhost:11434/v1"
-echo "      The .env.local file configures carcheck to use it automatically."
+echo "Or all in one line:"
+echo "  source .venv/bin/activate && source .env.local && carcheck detect ./test_photos/"

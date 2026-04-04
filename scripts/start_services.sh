@@ -45,13 +45,26 @@ for i in $(seq 1 60); do
     sleep 5
 done
 
-# 3. Show GPU status
+# 3. Start FastAPI
+echo "Starting FastAPI (port 8080)..."
+mkdir -p data/inspections
+nohup uvicorn carcheck.api.main:app --host 0.0.0.0 --port 8080 > "$HOME/fastapi.log" 2>&1 &
+echo "  FastAPI PID: $!"
+
+# 4. Start Huey consumer
+echo "Starting Huey worker..."
+nohup huey_consumer carcheck.api.worker.huey -w 1 -k thread > "$HOME/huey.log" 2>&1 &
+echo "  Huey PID: $!"
+
+# 5. Show GPU status
 echo ""
 echo "=== GPU Status ==="
 nvidia-smi --query-gpu=memory.used,memory.free,memory.total --format=csv,noheader
 echo ""
 echo "=== Services Ready ==="
 echo "vLLM API: http://localhost:8000/v1"
+echo "CarCheck API: http://localhost:8080/api/v1"
+echo "API Docs:    http://localhost:8080/docs"
 echo ""
 echo "Test: carcheck detect ./test_photos/"
 echo "Full: carcheck inspect ./photos/ -m 'Nissan Sunny' -y 2019 -k 85000"
