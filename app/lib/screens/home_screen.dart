@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../config/theme.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/chekar_logo.dart';
@@ -310,7 +311,45 @@ class _HistoryCard extends StatelessWidget {
     }
 
     return GestureDetector(
-      onTap: () => context.go('/report/$id'),
+      onTap: () => context.push('/report/$id'),
+      onLongPress: () {
+        showDialog(
+          context: context,
+          builder: (ctx) => Directionality(
+            textDirection: TextDirection.rtl,
+            child: AlertDialog(
+              title: Text('حذف الفحص؟', style: GoogleFonts.cairo(fontWeight: FontWeight.w700)),
+              content: Text('هيتحذف من السجل', style: GoogleFonts.cairo()),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: Text('لا', style: GoogleFonts.cairo()),
+                ),
+                TextButton(
+                  onPressed: () async {
+                    Navigator.pop(ctx);
+                    // Remove this item from history
+                    final prefs = await SharedPreferences.getInstance();
+                    final list = prefs.getStringList('inspection_history') ?? [];
+                    list.removeWhere((s) {
+                      try {
+                        final m = jsonDecode(s) as Map<String, dynamic>;
+                        return m['id'] == id;
+                      } catch (_) { return false; }
+                    });
+                    await prefs.setStringList('inspection_history', list);
+                    if (ctx.mounted) {
+                      // Force rebuild by navigating to home again
+                      (ctx as Element).findAncestorStateOfType<NavigatorState>()?.context.go('/home');
+                    }
+                  },
+                  child: Text('احذف', style: GoogleFonts.cairo(color: CheKarColors.scoreBad, fontWeight: FontWeight.w700)),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,

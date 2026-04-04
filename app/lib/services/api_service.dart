@@ -7,17 +7,30 @@ class ApiService {
   late final Dio _dio;
 
   ApiService() {
-    _dio = Dio(BaseOptions(baseUrl: '${ApiConfig.baseUrl}${ApiConfig.apiPrefix}', connectTimeout: ApiConfig.timeout, receiveTimeout: ApiConfig.timeout));
+    _dio = Dio(BaseOptions(
+      baseUrl: '${ApiConfig.baseUrl}${ApiConfig.apiPrefix}',
+      connectTimeout: ApiConfig.timeout,
+      receiveTimeout: ApiConfig.timeout,
+      headers: {'ngrok-skip-browser-warning': 'true'},
+    ));
   }
 
   void setApiKey(String key) { _dio.options.headers['X-API-Key'] = key; }
 
   Future<bool> validateApiKey(String key) async {
     try {
-      final dio = Dio(BaseOptions(baseUrl: ApiConfig.baseUrl, headers: {'X-API-Key': key}));
+      final dio = Dio(BaseOptions(
+        baseUrl: ApiConfig.baseUrl,
+        headers: {'X-API-Key': key, 'ngrok-skip-browser-warning': 'true'},
+        followRedirects: true,
+      ));
       final response = await dio.get('/health');
+      print('validateApiKey response: ${response.statusCode} ${response.data}');
       return response.statusCode == 200;
-    } catch (e) { return false; }
+    } catch (e) {
+      print('validateApiKey error: $e');
+      return false;
+    }
   }
 
   Future<String> createInspection({required String carModel, required int year, required int mileage, String lang = 'ar', String region = 'cairo'}) async {

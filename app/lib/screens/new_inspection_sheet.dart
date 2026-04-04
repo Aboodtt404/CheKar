@@ -63,13 +63,13 @@ class _NewInspectionSheetState extends ConsumerState<NewInspectionSheet> {
 
       if (mounted) {
         Navigator.of(context).pop();
-        context.go('/capture/${_selectedMode.name}');
+        context.push('/capture/${_selectedMode.name}');
       }
     } catch (e) {
       if (mounted) {
         setState(() {
           _isLoading = false;
-          _error = 'حصل خطأ، حاول تاني';
+          _error = 'Error: $e';
         });
       }
     }

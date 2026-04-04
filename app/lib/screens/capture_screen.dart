@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:camera/camera.dart';
 import '../config/theme.dart';
 import '../models/inspection.dart';
 import '../providers/inspection_provider.dart';
@@ -105,6 +106,8 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     with SingleTickerProviderStateMixin {
   int _currentStep = 0;
   bool _isCapturing = false;
+  CameraController? _cameraController;
+  bool _cameraReady = false;
 
   // Shutter glow animation
   late AnimationController _glowController;
@@ -128,11 +131,34 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     _glowAnim = Tween<double>(begin: 0.3, end: 0.8).animate(
       CurvedAnimation(parent: _glowController, curve: Curves.easeInOut),
     );
+    _initCamera();
+  }
+
+  Future<void> _initCamera() async {
+    try {
+      final cameras = await availableCameras();
+      if (cameras.isEmpty) return;
+      // Use the back camera
+      final backCamera = cameras.firstWhere(
+        (c) => c.lensDirection == CameraLensDirection.back,
+        orElse: () => cameras.first,
+      );
+      _cameraController = CameraController(
+        backCamera,
+        ResolutionPreset.high,
+        enableAudio: false,
+      );
+      await _cameraController!.initialize();
+      if (mounted) setState(() => _cameraReady = true);
+    } catch (e) {
+      // Camera not available (emulator) — leave _cameraReady false
+    }
   }
 
   @override
   void dispose() {
     _glowController.dispose();
+    _cameraController?.dispose();
     super.dispose();
   }
 
@@ -141,8 +167,16 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     setState(() => _isCapturing = true);
 
     try {
-      // Capture placeholder photo (emulator-safe)
-      final photo = await _generatePlaceholderPhoto(_currentStep);
+      File photo;
+
+      if (_cameraController != null && _cameraReady) {
+        // Take photo with in-app camera
+        final xFile = await _cameraController!.takePicture();
+        photo = File(xFile.path);
+      } else {
+        // Fallback: generate placeholder (emulator)
+        photo = await _generatePlaceholderPhoto(_currentStep);
+      }
 
       // Upload
       await ref.read(inspectionProvider.notifier).uploadPhoto(photo);
@@ -221,7 +255,11 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
     );
 
     if (confirmed == true && mounted) {
-      context.pop();
+      if (context.canPop()) {
+        context.pop();
+      } else {
+        context.go('/home');
+      }
     }
   }
 
@@ -238,7 +276,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
         body: Stack(
           children: [
             // Layer 1: Camera preview or dark fallback
-            _CameraLayer(),
+            _CameraLayer(controller: _cameraController, isReady: _cameraReady),
 
             // Layer 2: Overlay with brackets and arrow (central viewport area)
             Positioned.fill(
@@ -393,10 +431,25 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
 // ── Camera Layer ──────────────────────────────────────────────────────────────
 
 class _CameraLayer extends StatelessWidget {
+  final CameraController? controller;
+  final bool isReady;
+
+  const _CameraLayer({required this.controller, required this.isReady});
+
   @override
   Widget build(BuildContext context) {
-    // CamerAwesome does not work on emulator; always use the dark fallback.
-    // Swap this widget for CameraAwesomeBuilder when running on a real device.
+    if (controller != null && isReady) {
+      return SizedBox.expand(
+        child: FittedBox(
+          fit: BoxFit.cover,
+          child: SizedBox(
+            width: controller!.value.previewSize?.height ?? 1,
+            height: controller!.value.previewSize?.width ?? 1,
+            child: CameraPreview(controller!),
+          ),
+        ),
+      );
+    }
     return _DarkFallback();
   }
 }
@@ -412,15 +465,15 @@ class _DarkFallback extends StatelessWidget {
           colors: [Color(0xFF0D0D1A), Color(0xFF1A1A2E), Color(0xFF0A0A14)],
         ),
       ),
-      child: const Center(
+      child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('📷', style: TextStyle(fontSize: 40)),
-            SizedBox(height: 8),
+            Icon(Icons.camera_alt_rounded, size: 64, color: CheKarColors.orange.withOpacity(0.4)),
+            const SizedBox(height: 12),
             Text(
-              'Camera Preview',
-              style: TextStyle(color: Colors.white24, fontSize: 13),
+              'اضغط الزرار عشان تصور',
+              style: GoogleFonts.cairo(color: Colors.white38, fontSize: 14),
             ),
           ],
         ),

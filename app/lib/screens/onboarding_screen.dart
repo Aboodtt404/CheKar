@@ -51,7 +51,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           _isLoading = false;
         });
       }
-    } catch (_) {
+    } catch (e) {
       if (mounted) {
         setState(() {
           _error = 'مش قادر يتصل بالسيرفر';
@@ -132,6 +132,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                       children: [
                       // Logo
                       const CheKarLogo(fontSize: 40),
+
 
                       const SizedBox(height: 32),
 
