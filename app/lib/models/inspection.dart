@@ -30,14 +30,29 @@ class Inspection {
 
   const Inspection({required this.id, required this.status, required this.carModel, required this.year, required this.mileage, this.photoCount = 0, this.trustScore, this.grade, this.gradeAr, this.result, this.error, required this.createdAt, this.completedAt});
 
-  factory Inspection.fromJson(Map<String, dynamic> json) => Inspection(
-    id: json['id'] as String, status: InspectionStatus.fromString(json['status'] as String),
-    carModel: json['car_model'] as String, year: json['year'] as int, mileage: json['mileage'] as int,
-    photoCount: json['photo_count'] as int? ?? 0, trustScore: json['trust_score'] as int?,
-    grade: json['grade'] as String?, gradeAr: json['grade_ar'] as String?,
-    result: json['result'] as Map<String, dynamic>?, error: json['error'] as String?,
-    createdAt: json['created_at'] as String, completedAt: json['completed_at'] as String?,
-  );
+  factory Inspection.fromJson(Map<String, dynamic> json) {
+    // Try top-level grade first, then parse from result JSON
+    String? grade = json['grade'] as String?;
+    String? gradeAr = json['grade_ar'] as String?;
+    final result = json['result'] as Map<String, dynamic>?;
+
+    if (grade == null && result != null) {
+      final report = result['نتيجة_الفحص'] as Map<String, dynamic>?;
+      if (report != null) {
+        grade = report['التقييم'] as String?;
+        gradeAr = report['التقييم_بالعربي'] as String?;
+      }
+    }
+
+    return Inspection(
+      id: json['id'] as String, status: InspectionStatus.fromString(json['status'] as String),
+      carModel: json['car_model'] as String, year: json['year'] as int, mileage: json['mileage'] as int,
+      photoCount: json['photo_count'] as int? ?? 0, trustScore: json['trust_score'] as int?,
+      grade: grade, gradeAr: gradeAr,
+      result: result, error: json['error'] as String?,
+      createdAt: json['created_at'] as String, completedAt: json['completed_at'] as String?,
+    );
+  }
 
   String get scoreLabelAr {
     if (grade != null) {
