@@ -139,6 +139,34 @@ class VLMAnalyzer:
         )
         return response.choices[0].message.content
 
+    def validate_car_photos(self, image_paths: list[Path]) -> tuple[bool, str]:
+        """Check if the photos actually contain a car.
+
+        Returns (is_valid, message_ar).
+        is_valid: True if photos show a car, False if not.
+        message_ar: Arabic explanation if invalid.
+        """
+        system = "أنت خبير فحص سيارات. رد بـ JSON فقط."
+        user_text = (
+            "شوف الصور دي وقولي: هل الصور دي لعربية (سيارة) ولا لأ؟\n\n"
+            "رد بـ JSON كده:\n"
+            '```json\n'
+            '{"is_car": true, "message_ar": ""}\n'
+            '```\n\n'
+            "لو الصور مش لعربية، حط is_car: false واكتب في message_ar إيه اللي في الصور.\n"
+            "لو الصور لعربية، حط is_car: true و message_ar فاضية."
+        )
+
+        try:
+            raw = self._call(system, user_text, image_paths)
+            parsed = parse_vlm_json_response(raw)
+            is_car = parsed.get("is_car", True)
+            message = parsed.get("message_ar", "")
+            return (bool(is_car), message)
+        except Exception:
+            # If validation fails, assume valid and let the pipeline continue
+            return (True, "")
+
     def analyze_exterior(self, image_paths, car_model, year, mileage, yolo_detections_json):
         """Analyze exterior photos. Returns (classified_detections, additional_findings).
 

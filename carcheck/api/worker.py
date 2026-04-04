@@ -73,6 +73,17 @@ def run_inspection(inspection_id: str):
         exterior_photos = annotated_paths[:8] if len(annotated_paths) >= 8 else annotated_paths
         interior_photos = annotated_paths[8:] if len(annotated_paths) > 8 else []
 
+        # Validate photos are actually of a car
+        is_car, validation_msg = vlm.validate_car_photos(exterior_photos[:3])  # check first 3 photos
+        if not is_car:
+            error_msg = validation_msg or "الصور مش لعربية — صور عربية حقيقية وحاول تاني"
+            conn.execute(
+                "UPDATE inspections SET status='failed', error_message=? WHERE id=?",
+                (error_msg, inspection_id),
+            )
+            conn.commit()
+            return
+
         dets_json = json.dumps(
             [d.model_dump() for dets in detections_per_image for d in dets],
             ensure_ascii=False,

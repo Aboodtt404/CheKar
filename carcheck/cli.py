@@ -63,6 +63,14 @@ def inspect(
     exterior_photos = annotated_paths[:8] if len(annotated_paths) >= 8 else annotated_paths
     interior_photos = annotated_paths[8:] if len(annotated_paths) > 8 else []
 
+    # Validate photos contain a car
+    console.print("  Validating photos...")
+    is_car, validation_msg = vlm.validate_car_photos(exterior_photos[:3])
+    if not is_car:
+        console.print(f"\n[bold red]الصور مش لعربية[/bold red]")
+        console.print(f"[red]{validation_msg or 'صور عربية حقيقية وحاول تاني'}[/red]")
+        return
+
     dets_json = json.dumps(
         [d.model_dump() for dets in detections_per_image for d in dets],
         ensure_ascii=False,
