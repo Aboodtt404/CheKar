@@ -70,6 +70,20 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         body: NoiseBackground(
           child: Stack(
             children: [
+              // Car photo background with dark overlay
+              Positioned.fill(
+                child: Image.asset(
+                  'assets/images/mechanic_bg.jpg',
+                  fit: BoxFit.cover,
+                ),
+              ),
+              // Dark overlay (88% opacity)
+              Positioned.fill(
+                child: Container(
+                  color: CheKarColors.dark.withOpacity(0.88),
+                ),
+              ),
+
               // Asymmetric orange radial glow — offset top-right
               Positioned(
                 top: -120,
@@ -93,16 +107,16 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
               // Large background Arabic tagline — design element only
               Positioned(
-                top: MediaQuery.of(context).size.height * 0.18,
+                top: MediaQuery.of(context).size.height * 0.08,
                 left: -20,
                 right: -20,
                 child: Text(
                   'افحص عربيتك\nبالذكاء الاصطناعي',
                   textAlign: TextAlign.center,
                   style: GoogleFonts.cairo(
-                    fontSize: 36,
+                    fontSize: 40,
                     fontWeight: FontWeight.w900,
-                    color: Colors.white.withOpacity(0.04),
+                    color: Colors.white.withOpacity(0.03),
                     height: 1.2,
                   ),
                 ),
@@ -110,17 +124,16 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
               // Main content
               SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 28),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      const SizedBox(height: 72),
-
+                child: Center(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 40),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
                       // Logo
                       const CheKarLogo(fontSize: 40),
 
-                      const SizedBox(height: 48),
+                      const SizedBox(height: 32),
 
                       // Explainer text
                       Text(
@@ -134,7 +147,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                         ),
                       ),
 
-                      const Spacer(),
+                      const SizedBox(height: 48),
 
                       // Invite code field
                       TextField(
@@ -228,6 +241,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
                       const SizedBox(height: 40),
                     ],
+                  ),
                   ),
                 ),
               ),
