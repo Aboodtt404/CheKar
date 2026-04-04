@@ -1,6 +1,7 @@
 from carcheck.models import (
     Detection,
     Finding,
+    Severity,
     SubScore,
     TrustScoreResult,
 )
@@ -58,11 +59,18 @@ def calculate_trust_score(
     for finding in findings:
         cat = finding.finding_category
         key = finding.finding_key
+
         if cat in category_map and key:
             sub_score, deduction_fn = category_map[cat]
             amount = deduction_fn(key)
             if amount > 0:
                 sub_score.deduct(amount, finding.type)
+        elif cat == "body" or not cat:
+            if finding.severity == Severity.MAJOR:
+                body.deduct(8, finding.type)
+            else:
+                body.deduct(3, finding.type)
+
         if key in _CRITICAL_FINDING_KEYS:
             has_critical_finding = True
 
