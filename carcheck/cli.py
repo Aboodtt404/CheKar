@@ -29,7 +29,7 @@ def inspect(
     from carcheck.pipeline.image_annotator import annotate_image
     from carcheck.pipeline.vlm_analyzer import VLMAnalyzer
     from carcheck.pipeline.result_merger import merge_results
-    from carcheck.scoring.trust_score import calculate_trust_score
+    from carcheck.scoring.grading import calculate_grade
     from carcheck.report.generator import generate_report
 
     console = Console()
@@ -83,19 +83,20 @@ def inspect(
         detections_per_image, classified_detections, exterior_findings, interior_findings, region,
     )
 
-    trust_score = calculate_trust_score(all_detections, all_findings)
+    mode = "quick" if len(image_paths) <= 8 else "full"
+    grade_result = calculate_grade(all_detections, all_findings, mode=mode)
 
     console.print("  Call 3/3: Generating Arabic report...")
     cost_db_text = settings.cost_db_path.read_text(encoding="utf-8")
     report_data = vlm.generate_report(
         car_model, year, mileage,
         json.dumps([f.model_dump() for f in all_findings], ensure_ascii=False),
-        cost_db_text, trust_score.total,
+        cost_db_text, grade_result.grade,
     )
 
     result = InspectionResult(
         input=inspection_input, detections=all_detections,
-        findings=all_findings, trust_score=trust_score,
+        findings=all_findings, grade_result=grade_result,
         summary_ar=report_data.get("summary_ar", ""),
         warnings=report_data.get("warnings", []),
     )
@@ -110,11 +111,14 @@ def inspect(
 
     outputs = generate_report(result, output_json, output_pdf, lang)
 
-    score_color = "green" if trust_score.total >= 85 else "yellow" if trust_score.total >= 65 else "red"
-    console.print(Panel(
-        f"[bold {score_color}]{trust_score.total}/100 — {trust_score.label_ar}[/bold {score_color}]",
-        title="درجة الثقة", expand=False,
-    ))
+    LIGHT_ICONS = {"green": "[green]●[/green]", "yellow": "[yellow]●[/yellow]", "red": "[red]●[/red]", "not_assessed": "[dim]○[/dim]"}
+    grade_color = "green" if grade_result.grade == "A" else "yellow" if grade_result.grade == "B" else "red"
+    panel_lines = [f"[bold {grade_color}]{grade_result.grade} — {grade_result.grade_ar}[/bold {grade_color}]"]
+    panel_lines.append(f"[dim]{grade_result.recommendation_ar}[/dim]\n")
+    for name, cat in grade_result.categories.items():
+        icon = LIGHT_ICONS.get(cat.light.value, "○")
+        panel_lines.append(f"  {icon} {cat.name_ar}")
+    console.print(Panel("\n".join(panel_lines), title="نتيجة الفحص", expand=False))
     console.print(f"\nFindings: {len(all_findings)}")
     for f in all_findings:
         icon = "[red]![/red]" if f.severity.value == "major" else "[yellow]*[/yellow]"

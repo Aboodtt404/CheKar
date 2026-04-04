@@ -33,7 +33,9 @@ class InspectionStatusResponse(BaseModel):
     year: int
     mileage: int
     photo_count: int
-    trust_score: int | None = None
+    trust_score: int | None = None  # deprecated, kept for backward compat
+    grade: str | None = None
+    grade_ar: str | None = None
     result: dict | None = None
     error: str | None = None
     created_at: str

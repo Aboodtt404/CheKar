@@ -113,18 +113,27 @@ async def get_inspection(
     if inspection is None:
         raise HTTPException(status_code=404, detail="Inspection not found")
 
+    grade = None
+    grade_ar = None
+    result_data = None
+
+    if inspection["status"] == "completed" and inspection["result_json"]:
+        result_data = json.loads(inspection["result_json"])
+        inner = result_data.get("نتيجة_الفحص") or result_data.get("inspection_result") or {}
+        grade = inner.get("التقييم") or inner.get("grade")
+        grade_ar = inner.get("التقييم_بالعربي") or inner.get("grade_ar")
+
     response = InspectionStatusResponse(
         id=inspection["id"], status=inspection["status"],
         car_model=inspection["car_model"], year=inspection["year"],
         mileage=inspection["mileage"], photo_count=inspection["photo_count"],
         trust_score=inspection["trust_score"],
+        grade=grade, grade_ar=grade_ar,
+        result=result_data,
         error=inspection["error_message"],
         created_at=inspection["created_at"],
         completed_at=inspection["completed_at"],
     )
-
-    if inspection["status"] == "completed" and inspection["result_json"]:
-        response.result = json.loads(inspection["result_json"])
 
     return response
 

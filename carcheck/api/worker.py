@@ -46,7 +46,7 @@ def run_inspection(inspection_id: str):
         from carcheck.pipeline.preprocessor import validate_photos_dir, preprocess_image
         from carcheck.pipeline.image_annotator import annotate_image
         from carcheck.pipeline.result_merger import merge_results
-        from carcheck.scoring.trust_score import calculate_trust_score
+        from carcheck.scoring.grading import calculate_grade
         from carcheck.report.json_output import inspection_to_arabic_json, inspection_to_english_json
         from carcheck.report.pdf_builder import build_pdf
         from carcheck.models import InspectionInput, InspectionResult
@@ -82,13 +82,16 @@ def run_inspection(inspection_id: str):
         interior_findings, metadata = vlm.analyze_interior(interior_photos, car_model, year, mileage) if interior_photos else ([], {})
 
         all_findings, all_detections = merge_results(detections_per_image, classified_detections, exterior_findings, interior_findings, region)
-        trust_score = calculate_trust_score(all_detections, all_findings)
+
+        photo_count = len(image_paths)
+        mode = "quick" if photo_count <= 8 else "full"
+        grade_result = calculate_grade(all_detections, all_findings, mode=mode)
 
         cost_db_text = settings.cost_db_path.read_text(encoding="utf-8")
         report_data = vlm.generate_report(
             car_model, year, mileage,
             json.dumps([f.model_dump() for f in all_findings], ensure_ascii=False),
-            cost_db_text, trust_score.total,
+            cost_db_text, grade_result.grade,
         )
 
         inspection_input = InspectionInput(
@@ -97,7 +100,7 @@ def run_inspection(inspection_id: str):
         )
         result = InspectionResult(
             input=inspection_input, detections=all_detections,
-            findings=all_findings, trust_score=trust_score,
+            findings=all_findings, grade_result=grade_result,
             summary_ar=report_data.get("summary_ar", ""),
             warnings=report_data.get("warnings", []),
         )
@@ -118,7 +121,7 @@ def run_inspection(inspection_id: str):
 
         conn.execute(
             "UPDATE inspections SET status='completed', trust_score=?, result_json=?, completed_at=datetime('now') WHERE id=?",
-            (trust_score.total, result_json_str, inspection_id),
+            (0, result_json_str, inspection_id),
         )
         conn.commit()
 
