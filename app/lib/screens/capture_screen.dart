@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:camera/camera.dart';
+import 'package:flutter_exif_rotation/flutter_exif_rotation.dart';
 import '../config/theme.dart';
 import '../models/inspection.dart';
 import '../providers/inspection_provider.dart';
@@ -178,7 +179,8 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
       if (_cameraController != null && _cameraReady) {
         // Take photo with in-app camera
         final xFile = await _cameraController!.takePicture();
-        photo = File(xFile.path);
+        // Fix EXIF rotation — physically rotate pixels before upload
+        photo = await FlutterExifRotation.rotateImage(path: xFile.path);
       } else {
         // Fallback: generate placeholder (emulator)
         photo = await _generatePlaceholderPhoto(_currentStep);

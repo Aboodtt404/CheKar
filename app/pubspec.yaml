@@ -20,6 +20,7 @@ dependencies:
   share_plus: ^10.1.4
   flutter_image_compress: ^2.3.0
   path_provider: ^2.1.5
+  flutter_exif_rotation: ^0.5.1
   intl: ^0.20.2
   google_fonts: ^6.2.1
   image_picker: ^1.1.2

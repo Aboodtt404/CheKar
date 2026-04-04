@@ -5,7 +5,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
-from PIL import Image
+from PIL import Image, ImageOps
 
 from carcheck.api.auth import require_api_key
 from carcheck.api.schemas import (
@@ -73,7 +73,9 @@ async def upload_photo(
     photos_dir.mkdir(parents=True, exist_ok=True)
     photo_path = photos_dir / f"photo_{photo_number:03d}.jpg"
 
-    img = Image.open(io.BytesIO(contents)).convert("RGB")
+    img = Image.open(io.BytesIO(contents))
+    img = ImageOps.exif_transpose(img)  # Fix rotation BEFORE stripping EXIF
+    img = img.convert("RGB")
     img.save(photo_path, "JPEG", quality=85)
 
     await db.increment_photo_count(inspection_id)
