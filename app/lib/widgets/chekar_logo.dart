@@ -8,7 +8,9 @@ class CheKarLogo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: Row(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.baseline,
       textBaseline: TextBaseline.alphabetic,
@@ -20,6 +22,7 @@ class CheKarLogo extends StatelessWidget {
           child: Container(width: fontSize * 0.18, height: fontSize * 0.18, decoration: const BoxDecoration(color: CheKarColors.orange, shape: BoxShape.circle)),
         ),
       ],
+    ),
     );
   }
 }

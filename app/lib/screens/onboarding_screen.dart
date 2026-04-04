@@ -93,17 +93,17 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
               // Large background Arabic tagline — design element only
               Positioned(
-                top: MediaQuery.of(context).size.height * 0.28,
-                left: 0,
-                right: 0,
+                top: MediaQuery.of(context).size.height * 0.18,
+                left: -20,
+                right: -20,
                 child: Text(
-                  'افحص عربيتك بالذكاء الاصطناعي',
+                  'افحص عربيتك\nبالذكاء الاصطناعي',
                   textAlign: TextAlign.center,
                   style: GoogleFonts.cairo(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white.withOpacity(0.08),
-                    height: 1.3,
+                    fontSize: 36,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white.withOpacity(0.04),
+                    height: 1.2,
                   ),
                 ),
               ),
