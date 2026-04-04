@@ -102,6 +102,48 @@ class SubScore(BaseModel):
         self.score = max(0, self.score - amount)
 
 
+class TrafficLight(str, Enum):
+    GREEN = "green"
+    YELLOW = "yellow"
+    RED = "red"
+    NOT_ASSESSED = "not_assessed"
+
+
+class CategoryResult(BaseModel):
+    """Traffic light result for one assessment category."""
+    name: str
+    name_ar: str
+    light: TrafficLight
+    findings: list[Finding] = []
+
+
+GRADE_INFO = {
+    "A": {"ar": "ممتاز", "color": "#16A34A", "rec_ar": "العربية شكلها كويس من برا. اعمل كشف ميكانيكي للاطمئنان وخلاص."},
+    "B": {"ar": "جيد جداً", "color": "#EAB308", "rec_ar": "فيه حاجات بسيطة بس مفيش حاجة تقلق. اعمل كشف ميكانيكي قبل ما تشتري."},
+    "C": {"ar": "مقبول", "color": "#F97316", "rec_ar": "فيه مشاكل محتاجة تتصلح. اتفاوض على السعر واعمل كشف ميكانيكي."},
+    "D": {"ar": "يحتاج فحص", "color": "#DC2626", "rec_ar": "فيه مشاكل كبيرة. متشتريش من غير كشف ميكانيكي كامل."},
+    "F": {"ar": "ابعد عنها", "color": "#7F1D1D", "rec_ar": "علامات خطر كتير. الأحسن تدور على عربية تانية."},
+}
+
+UNASSESSED_AREAS_AR = [
+    "الحالة الميكانيكية (المحرك، الفتيس، الفرامل) — محتاج كشف ميكانيكي",
+    "الكهربا والحساسات — محتاج جهاز تشخيص",
+    "أسفل العربية — محتاج رافعة",
+    "دقة العداد — مش مضمونة من الصور",
+]
+
+
+class GradeResult(BaseModel):
+    """Complete grading result — replaces TrustScoreResult."""
+    grade: str
+    grade_ar: str
+    grade_color: str
+    recommendation_ar: str
+    categories: dict[str, CategoryResult]
+    unassessed_areas_ar: list[str] = UNASSESSED_AREAS_AR
+    has_critical_finding: bool = False
+
+
 class TrustScoreResult(BaseModel):
     """The complete trust score output."""
 
@@ -129,6 +171,7 @@ class InspectionResult(BaseModel):
     detections: list[Detection] = []
     findings: list[Finding] = []
     trust_score: TrustScoreResult | None = None
+    grade_result: GradeResult | None = None
     summary_ar: str = ""
     summary_en: str = ""
     disclaimer_ar: str = "التقرير ده تقييم بالذكاء الاصطناعي بناءً على الصور — مش بديل عن الفحص الميكانيكي"
