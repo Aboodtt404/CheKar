@@ -326,7 +326,7 @@ class _ProcessingScreenState extends ConsumerState<ProcessingScreen>
             ),
             const SizedBox(height: 8),
             Text(
-              'الفحص اتوقف بسبب خطأ. حاول تاني.',
+              ref.read(inspectionProvider).current?.error ?? 'الفحص اتوقف بسبب خطأ. حاول تاني.',
               textAlign: TextAlign.center,
               style: GoogleFonts.cairo(
                 fontSize: 14,
