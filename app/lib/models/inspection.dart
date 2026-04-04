@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+
 enum InspectionStatus {
   created, uploading, processing, completed, failed;
   static InspectionStatus fromString(String s) => InspectionStatus.values.firstWhere((e) => e.name == s, orElse: () => InspectionStatus.created);
@@ -19,26 +21,39 @@ class Inspection {
   final int mileage;
   final int photoCount;
   final int? trustScore;
+  final String? grade;
+  final String? gradeAr;
   final Map<String, dynamic>? result;
   final String? error;
   final String createdAt;
   final String? completedAt;
 
-  const Inspection({required this.id, required this.status, required this.carModel, required this.year, required this.mileage, this.photoCount = 0, this.trustScore, this.result, this.error, required this.createdAt, this.completedAt});
+  const Inspection({required this.id, required this.status, required this.carModel, required this.year, required this.mileage, this.photoCount = 0, this.trustScore, this.grade, this.gradeAr, this.result, this.error, required this.createdAt, this.completedAt});
 
   factory Inspection.fromJson(Map<String, dynamic> json) => Inspection(
     id: json['id'] as String, status: InspectionStatus.fromString(json['status'] as String),
     carModel: json['car_model'] as String, year: json['year'] as int, mileage: json['mileage'] as int,
     photoCount: json['photo_count'] as int? ?? 0, trustScore: json['trust_score'] as int?,
+    grade: json['grade'] as String?, gradeAr: json['grade_ar'] as String?,
     result: json['result'] as Map<String, dynamic>?, error: json['error'] as String?,
     createdAt: json['created_at'] as String, completedAt: json['completed_at'] as String?,
   );
 
   String get scoreLabelAr {
+    if (grade != null) {
+      final labels = {'A': 'ممتاز', 'B': 'جيد جداً', 'C': 'مقبول', 'D': 'يحتاج فحص', 'F': 'ابعد عنها'};
+      return labels[grade] ?? gradeAr ?? '';
+    }
+    // Fallback for old data with trust_score
     final s = trustScore ?? 0;
     if (s >= 85) return 'اشتري بثقة';
     if (s >= 65) return 'فاوض على السعر';
     if (s >= 40) return 'اعمل فحص ميكانيكي';
     return 'ابعد عن العربية دي';
+  }
+
+  Color get gradeColor {
+    const colors = {'A': Color(0xFF16A34A), 'B': Color(0xFFEAB308), 'C': Color(0xFFF97316), 'D': Color(0xFFDC2626), 'F': Color(0xFF7F1D1D)};
+    return colors[grade] ?? const Color(0xFF78716C);
   }
 }

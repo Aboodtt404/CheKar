@@ -10,7 +10,8 @@ import '../models/inspection.dart';
 import '../providers/auth_provider.dart';
 import '../providers/inspection_provider.dart';
 import '../widgets/finding_card.dart';
-import '../widgets/score_circle.dart';
+import '../widgets/grade_badge.dart';
+import '../widgets/traffic_light_row.dart';
 
 class ReportScreen extends ConsumerStatefulWidget {
   final String inspectionId;
@@ -25,7 +26,6 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
   Inspection? _inspection;
   bool _loading = true;
   String? _error;
-  bool _subScoresExpanded = false;
 
   @override
   void initState() {
@@ -66,12 +66,6 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
     return findings;
   }
 
-  Map<String, dynamic>? _parseSubScores(Map<String, dynamic>? report) {
-    final sub = report?['الدرجات_الفرعية'];
-    if (sub is Map) return sub.cast<String, dynamic>();
-    return null;
-  }
-
   String _toArabicNumerals(String text) {
     const en = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', ',', '.'];
     const ar = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩', '،', '٫'];
@@ -83,10 +77,10 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
   }
 
   void _shareWhatsApp(Inspection inspection, List<Finding> findings) {
+    final gradeLabel = inspection.grade != null ? 'التقييم: ${inspection.grade} - ${inspection.scoreLabelAr}' : 'درجة الثقة: ${inspection.trustScore}/100\n${inspection.scoreLabelAr}';
     final text = 'تقرير فحص CheKar\n'
         '${inspection.carModel} ${inspection.year}\n'
-        'درجة الثقة: ${inspection.trustScore}/100\n'
-        '${inspection.scoreLabelAr}\n'
+        '$gradeLabel\n'
         'عدد المشاكل: ${findings.length}';
     Share.share(text);
   }
@@ -94,7 +88,6 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
   Future<void> _downloadPdf(Inspection inspection) async {
     try {
       final api = ref.read(apiServiceProvider);
-      // Download to temp path
       final path = '/tmp/chekar_report_${inspection.id}.pdf';
       await api.downloadReportPdf(inspection.id, path);
       if (mounted) {
@@ -151,14 +144,16 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
     final inspection = _inspection!;
     final report = inspection.result?['نتيجة_الفحص'] as Map<String, dynamic>?;
     final findings = _parseFindings(report);
-    final subScores = _parseSubScores(report);
-    final score = inspection.trustScore ?? 0;
-    final scoreColor = CheKarColors.scoreColor(score);
+    final categories = report?['الفئات'] as Map<String, dynamic>? ?? {};
+    final unassessed = (report?['مالقدرناش_نفحص'] as List?)?.cast<String>() ?? [];
+    final recommendation = report?['النصيحة'] as String? ?? '';
     final isQuick = inspection.photoCount <= 4;
+
+    final gradeColor = inspection.gradeColor;
 
     return CustomScrollView(
       slivers: [
-        SliverToBoxAdapter(child: _buildHeroHeader(inspection, score, scoreColor, isQuick)),
+        SliverToBoxAdapter(child: _buildHeroHeader(inspection, gradeColor, isQuick)),
         SliverToBoxAdapter(
           child: Container(
             decoration: const BoxDecoration(
@@ -170,11 +165,19 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildFindingsSection(findings),
-                  if (subScores != null && subScores.isNotEmpty) ...[
+                  if (recommendation.isNotEmpty) ...[
+                    _buildRecommendationCard(recommendation, gradeColor),
                     const SizedBox(height: 28),
-                    _buildSubScoresSection(subScores),
                   ],
+                  if (categories.isNotEmpty) ...[
+                    _buildCategoriesSection(categories),
+                    const SizedBox(height: 28),
+                  ],
+                  if (unassessed.isNotEmpty) ...[
+                    _buildUnassessedSection(unassessed),
+                    const SizedBox(height: 28),
+                  ],
+                  _buildFindingsSection(findings),
                   const SizedBox(height: 32),
                   _buildActionButtons(inspection, findings),
                   const SizedBox(height: 20),
@@ -188,7 +191,7 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
     );
   }
 
-  Widget _buildHeroHeader(Inspection inspection, int score, Color scoreColor, bool isQuick) {
+  Widget _buildHeroHeader(Inspection inspection, Color gradeColor, bool isQuick) {
     return Container(
       color: CheKarColors.dark,
       child: SafeArea(
@@ -229,17 +232,16 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
                     ),
                   ),
                   const Spacer(),
-                  const SizedBox(width: 40), // balance
+                  const SizedBox(width: 40),
                 ],
               ),
 
               const SizedBox(height: 28),
 
-              // Glow + ScoreCircle
+              // Grade badge with glow
               Stack(
                 alignment: Alignment.center,
                 children: [
-                  // Glow behind circle
                   Container(
                     width: 180,
                     height: 180,
@@ -247,26 +249,30 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: scoreColor.withAlpha(77),
+                          color: gradeColor.withAlpha(77),
                           blurRadius: 60,
                           spreadRadius: 20,
                         ),
                       ],
                     ),
                   ),
-                  ScoreCircle(score: score, animate: true),
+                  GradeBadge(
+                    grade: inspection.grade ?? '?',
+                    color: gradeColor,
+                    size: 120,
+                  ),
                 ],
               ),
 
               const SizedBox(height: 20),
 
-              // Score label — design statement
+              // Grade label
               Text(
                 inspection.scoreLabelAr,
                 style: GoogleFonts.cairo(
                   fontSize: 28,
                   fontWeight: FontWeight.w700,
-                  color: scoreColor,
+                  color: gradeColor,
                 ),
               ),
 
@@ -318,6 +324,156 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
     return _toArabicNumerals(mileage.toString());
   }
 
+  Widget _buildRecommendationCard(String recommendation, Color gradeColor) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: gradeColor.withOpacity(0.07),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: gradeColor.withOpacity(0.25), width: 1),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.tips_and_updates_rounded, color: gradeColor, size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              recommendation,
+              style: GoogleFonts.cairo(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: CheKarColors.textPrimary,
+                height: 1.6,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCategoriesSection(Map<String, dynamic> categories) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'حالة الأجزاء',
+          style: GoogleFonts.cairo(
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            color: CheKarColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFFF5F5F4)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.04),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            children: [
+              for (final entry in categories.entries)
+                TrafficLightRow(
+                  nameAr: entry.key,
+                  light: (entry.value as Map<String, dynamic>?)?['الحالة'] as String? ?? 'not_assessed',
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildUnassessedSection(List<String> unassessed) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'مالقدرناش نفحص',
+          style: GoogleFonts.cairo(
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            color: CheKarColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFF7ED),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: CheKarColors.orange.withOpacity(0.2), width: 1),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.warning_amber_rounded, color: CheKarColors.orange, size: 18),
+                  const SizedBox(width: 8),
+                  Text(
+                    'الأجزاء دي محتاجة فحص ميكانيكي',
+                    style: GoogleFonts.cairo(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: CheKarColors.orange,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              ...unassessed.map(
+                (item) => Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: Container(
+                          width: 5,
+                          height: 5,
+                          decoration: BoxDecoration(
+                            color: CheKarColors.textMuted,
+                            borderRadius: BorderRadius.circular(3),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          item,
+                          style: GoogleFonts.cairo(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: CheKarColors.textMuted,
+                            height: 1.5,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildFindingsSection(List<Finding> findings) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -358,95 +514,6 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
             separatorBuilder: (_, __) => const SizedBox(height: 10),
             itemBuilder: (context, i) => FindingCard(finding: findings[i]),
           ),
-      ],
-    );
-  }
-
-  Widget _buildSubScoresSection(Map<String, dynamic> subScores) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        GestureDetector(
-          onTap: () => setState(() => _subScoresExpanded = !_subScoresExpanded),
-          child: Row(
-            children: [
-              Text(
-                'الدرجات التفصيلية',
-                style: GoogleFonts.cairo(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: CheKarColors.textPrimary,
-                ),
-              ),
-              const Spacer(),
-              AnimatedRotation(
-                turns: _subScoresExpanded ? 0.5 : 0.0,
-                duration: const Duration(milliseconds: 250),
-                child: const Icon(Icons.keyboard_arrow_down_rounded, color: CheKarColors.textMuted),
-              ),
-            ],
-          ),
-        ),
-        AnimatedCrossFade(
-          duration: const Duration(milliseconds: 280),
-          crossFadeState: _subScoresExpanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
-          firstChild: const SizedBox.shrink(),
-          secondChild: Padding(
-            padding: const EdgeInsets.only(top: 16),
-            child: Column(
-              children: subScores.entries.map((entry) {
-                final name = entry.key;
-                final data = entry.value;
-                int scoreVal = 0;
-                if (data is Map) {
-                  final raw = data['الدرجة'];
-                  scoreVal = raw is int ? raw : int.tryParse(raw.toString()) ?? 0;
-                }
-                final barColor = CheKarColors.scoreColor(scoreVal);
-                final fraction = (scoreVal / 100).clamp(0.0, 1.0);
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 14),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            name,
-                            style: GoogleFonts.cairo(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: CheKarColors.textPrimary,
-                            ),
-                          ),
-                          Text(
-                            _toArabicNumerals('$scoreVal'),
-                            style: GoogleFonts.saira(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              color: barColor,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(4),
-                        child: LinearProgressIndicator(
-                          value: fraction,
-                          backgroundColor: const Color(0xFFF5F5F4),
-                          valueColor: AlwaysStoppedAnimation<Color>(barColor),
-                          minHeight: 7,
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-        ),
       ],
     );
   }

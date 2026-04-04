@@ -293,11 +293,21 @@ class _HistoryCard extends StatelessWidget {
     final id = item['id'] as String? ?? '';
     final carModel = item['car_model'] as String? ?? 'عربية';
     final year = item['year']?.toString() ?? '';
+    final grade = item['grade'] as String?;
     final score = (item['trust_score'] as num?)?.toInt();
     final status = item['status'] as String? ?? 'completed';
     final createdAt = _formatDate(item['created_at'] as String?);
 
-    final scoreColor = score != null ? CheKarColors.scoreColor(score) : CheKarColors.textMuted;
+    const gradeColors = {
+      'A': Color(0xFF16A34A),
+      'B': Color(0xFFEAB308),
+      'C': Color(0xFFF97316),
+      'D': Color(0xFFDC2626),
+      'F': Color(0xFF7F1D1D),
+    };
+    final scoreColor = grade != null
+        ? (gradeColors[grade] ?? CheKarColors.textMuted)
+        : (score != null ? CheKarColors.scoreColor(score) : CheKarColors.textMuted);
 
     String modeLabel = '';
     if (status == 'completed') {
@@ -366,7 +376,7 @@ class _HistoryCard extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         child: Row(
           children: [
-            // Score badge — angular (borderRadius 6)
+            // Grade / score badge — angular (borderRadius 6)
             Container(
               width: 52,
               height: 52,
@@ -376,16 +386,25 @@ class _HistoryCard extends StatelessWidget {
                 border: Border.all(color: scoreColor.withOpacity(0.35), width: 1.5),
               ),
               child: Center(
-                child: score != null
+                child: grade != null
                     ? Text(
-                        '$score',
+                        grade,
                         style: GoogleFonts.saira(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
                           color: scoreColor,
                         ),
                       )
-                    : Icon(Icons.hourglass_top_rounded, color: scoreColor, size: 20),
+                    : score != null
+                        ? Text(
+                            '$score',
+                            style: GoogleFonts.saira(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              color: scoreColor,
+                            ),
+                          )
+                        : Icon(Icons.hourglass_top_rounded, color: scoreColor, size: 20),
               ),
             ),
             const SizedBox(width: 14),
