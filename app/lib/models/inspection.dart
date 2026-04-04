@@ -4,8 +4,8 @@ enum InspectionStatus {
 }
 
 enum CaptureMode {
-  quick(4, 'فحص سريع'),
-  full(15, 'فحص شامل');
+  quick(8, 'فحص سريع'),
+  full(12, 'فحص شامل');
   final int photoCount;
   final String labelAr;
   const CaptureMode(this.photoCount, this.labelAr);

@@ -172,7 +172,7 @@ class _NewInspectionSheetState extends ConsumerState<NewInspectionSheet> {
                     child: _ModeCard(
                       mode: CaptureMode.quick,
                       label: 'فحص سريع',
-                      sublabel: '٤ صور',
+                      sublabel: '٨ صور خارجية',
                       isSelected: _selectedMode == CaptureMode.quick,
                       onTap: () => setState(() => _selectedMode = CaptureMode.quick),
                     ),
@@ -182,7 +182,7 @@ class _NewInspectionSheetState extends ConsumerState<NewInspectionSheet> {
                     child: _ModeCard(
                       mode: CaptureMode.full,
                       label: 'فحص شامل',
-                      sublabel: '١٥ صورة',
+                      sublabel: '١٢ صورة شاملة',
                       isSelected: _selectedMode == CaptureMode.full,
                       onTap: () => setState(() => _selectedMode = CaptureMode.full),
                     ),

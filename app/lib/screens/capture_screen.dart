@@ -15,14 +15,8 @@ import '../widgets/capture_dots.dart';
 
 // ── Step definitions ──────────────────────────────────────────────────────────
 
+// Quick scan: 8 exterior angles around the car
 const _quickSteps = [
-  {'instruction': 'صور العربية من الأمام', 'hint': 'وقف قدام العربية', 'arrow': '↑'},
-  {'instruction': 'صور الجنب اليمين', 'hint': 'صور من الجنب', 'arrow': '→'},
-  {'instruction': 'صور العربية من ورا', 'hint': 'وقف ورا العربية', 'arrow': '↓'},
-  {'instruction': 'صور الجنب الشمال', 'hint': 'صور من الجنب', 'arrow': '←'},
-];
-
-const _fullSteps = [
   {'instruction': 'صور العربية من الأمام', 'hint': 'وقف قدام العربية', 'arrow': '↑'},
   {'instruction': 'صور من الأمام يمين', 'hint': 'زاوية ٤٥ درجة', 'arrow': '↗'},
   {'instruction': 'صور الجنب اليمين كامل', 'hint': 'صور الجنب كله', 'arrow': '→'},
@@ -31,13 +25,25 @@ const _fullSteps = [
   {'instruction': 'صور من ورا شمال', 'hint': 'زاوية ٤٥ درجة', 'arrow': '↙'},
   {'instruction': 'صور الجنب الشمال كامل', 'hint': 'صور الجنب كله', 'arrow': '←'},
   {'instruction': 'صور من الأمام شمال', 'hint': 'زاوية ٤٥ درجة', 'arrow': '↖'},
-  {'instruction': 'افتح الكبوت وصوره', 'hint': 'صور المحرك من فوق', 'arrow': '⬇'},
-  {'instruction': 'صور الطبلون', 'hint': 'من مكان السواق', 'arrow': '📷'},
-  {'instruction': 'صور العداد قريب', 'hint': 'لازم الأرقام تبان', 'arrow': '🔍'},
-  {'instruction': 'صور المقاعد الأمامية', 'hint': 'من برا الباب', 'arrow': '📷'},
-  {'instruction': 'صور لوحة الشاسيه', 'hint': 'عادة جوا الباب', 'arrow': '🔍'},
-  {'instruction': 'صور الكاوتش الأمامي', 'hint': 'قرب من الكاوتش', 'arrow': '🔍'},
-  {'instruction': 'صور أسفل الباب', 'hint': 'ادي الصورة من تحت', 'arrow': '⬇'},
+];
+
+// Full inspection: 8 exterior + 2 seats + 1 mileage + 1 dashboard = 12
+const _fullSteps = [
+  // 8 exterior angles
+  {'instruction': 'صور العربية من الأمام', 'hint': 'وقف قدام العربية', 'arrow': '↑'},
+  {'instruction': 'صور من الأمام يمين', 'hint': 'زاوية ٤٥ درجة', 'arrow': '↗'},
+  {'instruction': 'صور الجنب اليمين كامل', 'hint': 'صور الجنب كله', 'arrow': '→'},
+  {'instruction': 'صور من ورا يمين', 'hint': 'زاوية ٤٥ درجة', 'arrow': '↘'},
+  {'instruction': 'صور العربية من ورا', 'hint': 'وقف ورا العربية', 'arrow': '↓'},
+  {'instruction': 'صور من ورا شمال', 'hint': 'زاوية ٤٥ درجة', 'arrow': '↙'},
+  {'instruction': 'صور الجنب الشمال كامل', 'hint': 'صور الجنب كله', 'arrow': '←'},
+  {'instruction': 'صور من الأمام شمال', 'hint': 'زاوية ٤٥ درجة', 'arrow': '↖'},
+  // Interior
+  {'instruction': 'صور المقاعد الأمامية', 'hint': 'افتح الباب وصور من برا', 'arrow': '📷'},
+  {'instruction': 'صور المقاعد الخلفية', 'hint': 'افتح الباب الخلفي وصور', 'arrow': '📷'},
+  // Dashboard + mileage
+  {'instruction': 'صور الطبلون والعداد', 'hint': 'من مكان السواق، لازم الأرقام تبان', 'arrow': '🔍'},
+  {'instruction': 'صور العداد قريب', 'hint': 'قرّب من العداد، لازم الكيلومترات تبان', 'arrow': '🔍'},
 ];
 
 // Convert integer to Eastern Arabic numerals

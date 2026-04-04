@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from PIL import Image, UnidentifiedImageError
+from PIL import Image, ImageOps, UnidentifiedImageError
 
 from carcheck.config import settings
 
@@ -15,6 +15,9 @@ def preprocess_image(image_path: Path, output_dir: Path) -> Path:
         img = Image.open(image_path)  # reopen after verify
     except (UnidentifiedImageError, Exception) as e:
         raise ValueError(f"{image_path.name} is not a valid image: {e}")
+
+    # Apply EXIF rotation — phone photos are often stored sideways
+    img = ImageOps.exif_transpose(img)
 
     width, height = img.size
     if max(width, height) < settings.min_image_dimension:

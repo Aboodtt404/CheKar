@@ -82,9 +82,13 @@ def merge_results(
             qwen_lookup[rid] = cd
 
     # Convert each YOLO detection to a Finding, cross-checked with Qwen
+    # If Qwen says "no_damage" or "not_car", skip the detection entirely
     yolo_findings = []
     for i, det in enumerate(all_detections):
         qwen = qwen_lookup.get(i, {})
+        qwen_class = qwen.get("class_en", "")
+        if qwen_class in ("no_damage", "not_car", "false_positive"):
+            continue  # Qwen overrides: this isn't real damage, drop it
         finding = _detection_to_finding(
             det,
             qwen_class=qwen.get("class_en"),
