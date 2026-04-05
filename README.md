@@ -20,7 +20,7 @@ CheKar uses AI to inspect used cars from photos. Take 8-12 photos of a car, get 
 | إشارات حوادث | Repaint patterns, panel misalignment, accident history |
 | المستندات | Odometer vs wear consistency, year/model verification |
 
-## What It Cannot Assess
+## What It Cannot Assess (at the moment)
 
 - Engine, transmission, brakes, suspension — needs a mechanic
 - Electrical systems — needs diagnostic tools
