@@ -137,7 +137,16 @@ def run_inspection(inspection_id: str):
         conn.commit()
 
     except Exception as e:
-        error_msg = f"{type(e).__name__}: {str(e)}"
+        raw_error = f"{type(e).__name__}: {str(e)}"
+        # Show user-friendly error, not raw stack trace
+        if "parse" in raw_error.lower() or "json" in raw_error.lower():
+            error_msg = "حصل مشكلة في تحليل الصور. حاول تاني بصور أوضح."
+        elif "timeout" in raw_error.lower() or "connect" in raw_error.lower():
+            error_msg = "السيرفر مشغول. حاول تاني بعد شوية."
+        elif "memory" in raw_error.lower() or "oom" in raw_error.lower():
+            error_msg = "السيرفر مشغول. حاول تاني بعد شوية."
+        else:
+            error_msg = "حصل مشكلة غير متوقعة. حاول تاني."
         conn.execute("UPDATE inspections SET status='failed', error_message=? WHERE id=?", (error_msg, inspection_id))
         conn.commit()
         raise

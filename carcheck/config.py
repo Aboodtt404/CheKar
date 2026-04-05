@@ -20,7 +20,7 @@ class Settings(BaseModel):
     # vLLM / Qwen
     vlm_base_url: str = os.getenv("CARCHECK_VLM_URL", "http://localhost:8000/v1")
     vlm_model: str = os.getenv("CARCHECK_VLM_MODEL", "Qwen/Qwen3.5-27B-FP8")
-    vlm_max_tokens: int = 2048
+    vlm_max_tokens: int = 4096
     vlm_temperature: float = 0.1
 
     # Image preprocessing
