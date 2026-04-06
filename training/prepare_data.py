@@ -146,49 +146,42 @@ def stratified_split(merged_dir: Path, output_dir: Path, train_ratio: float = 0.
 
 
 def process_vehide(dataset_dir: Path, output_dir: Path) -> dict:
-    """Process VehiDE dataset: COCO JSON → YOLO labels → remap to CarDD classes."""
-    from training.coco_to_yolo import coco_to_yolo
-    from training.remap_config import remap_class_id
+    """Process VehiDE dataset: VIA JSON → YOLO labels → remap to CarDD classes."""
+    from training.coco_to_yolo import via_to_yolo
     import shutil
 
     stats = {"images": 0, "with_labels": 0, "background": 0}
-
-    # VehiDE has COCO-format annotations — convert to YOLO first
     temp_dir = output_dir / "_vehide_temp"
 
-    # Process train and val splits
+    # VehiDE uses VIA format (VGG Image Annotator)
     splits = []
-    # Train annotations
-    train_json = dataset_dir / "coco_annotations.json"
+
+    # Train: 0Train_via_annos.json + image/image/
+    train_json = dataset_dir / "0Train_via_annos.json"
     train_images = dataset_dir / "image" / "image"
     if not train_images.exists():
         train_images = dataset_dir / "image"
-    if not train_images.exists():
-        train_images = dataset_dir
     if train_json.exists():
         splits.append(("train", train_json, train_images))
 
-    # Val annotations
-    val_json = dataset_dir / "coco_annotations_val.json"
+    # Val: 0Val_via_annos.json + validation/validation/
+    val_json = dataset_dir / "0Val_via_annos.json"
     val_images = dataset_dir / "validation" / "validation"
     if not val_images.exists():
         val_images = dataset_dir / "validation"
-    if not val_images.exists():
-        val_images = dataset_dir
     if val_json.exists():
         splits.append(("val", val_json, val_images))
 
     for split_name, json_path, img_dir in splits:
-        print(f"    Converting VehiDE {split_name} from COCO to YOLO...")
+        print(f"    Converting VehiDE {split_name} from VIA to YOLO...")
         temp_split = temp_dir / split_name
-        convert_stats = coco_to_yolo(
+        convert_stats = via_to_yolo(
             json_path, img_dir,
             temp_split / "images", temp_split / "labels",
-            use_segmentation=True,
         )
         print(f"    Converted {convert_stats['images']} images, {convert_stats['annotations']} annotations")
 
-    # Now remap YOLO labels to CarDD classes and merge into output
+    # Remap VehiDE 0-indexed classes to CarDD 6-class standard and merge
     out_images = output_dir / "all" / "images"
     out_labels = output_dir / "all" / "labels"
     out_images.mkdir(parents=True, exist_ok=True)
@@ -222,7 +215,7 @@ def process_vehide(dataset_dir: Path, output_dir: Path) -> dict:
                 out_lbl.write_text("")
                 stats["background"] += 1
 
-    # Clean up temp dir
+    # Clean up temp
     shutil.rmtree(temp_dir, ignore_errors=True)
     return stats
 

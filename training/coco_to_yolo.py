@@ -1,121 +1,90 @@
-"""Convert COCO-format annotations to YOLO format (detection or segmentation)."""
+"""Convert VIA or COCO format annotations to YOLO format."""
 import json
 from pathlib import Path
+from PIL import Image as PILImage
 
 
-def coco_to_yolo(
-    coco_json_path: Path,
+# VehiDE class names (Vietnamese) → 0-indexed IDs for YOLO
+VEHIDE_CLASS_TO_ID = {
+    "be_den": 0,       # broken lights
+    "mat_bo_phan": 1,  # lost parts
+    "mop_lom": 2,      # dents
+    "rach": 3,         # torn
+    "thung": 4,        # punctured
+    "tray_son": 5,     # scratches
+    "vo_kinh": 6,      # broken glass
+}
+
+
+def via_to_yolo(
+    via_json_path: Path,
     images_dir: Path,
     output_images_dir: Path,
     output_labels_dir: Path,
-    use_segmentation: bool = True,
 ) -> dict:
-    """Convert COCO annotations to YOLO label files.
+    """Convert VIA (VGG Image Annotator) annotations to YOLO seg format.
 
-    Args:
-        coco_json_path: Path to COCO annotations JSON.
-        images_dir: Directory containing the source images.
-        output_images_dir: Where to symlink/copy images.
-        output_labels_dir: Where to write YOLO label .txt files.
-        use_segmentation: If True, output polygon masks (for seg training).
-                          If False, output bounding boxes only.
-
-    Returns:
-        Stats dict with image and annotation counts.
+    VIA format: dict of {filename: {name, regions: [{all_x, all_y, class}]}}
+    YOLO seg format: class_id x1 y1 x2 y2 ... (normalized polygon coords)
     """
     import shutil
 
     output_images_dir.mkdir(parents=True, exist_ok=True)
     output_labels_dir.mkdir(parents=True, exist_ok=True)
 
-    with open(coco_json_path, "r") as f:
-        coco = json.load(f)
+    with open(via_json_path, "r") as f:
+        data = json.load(f)
 
-    # Build lookup: image_id → image info
-    id_to_image = {img["id"]: img for img in coco["images"]}
+    stats = {"images": 0, "annotations": 0, "skipped_no_file": 0, "skipped_bad_poly": 0}
 
-    # Build lookup: image_id → list of annotations
-    image_annotations: dict[int, list] = {}
-    for ann in coco["annotations"]:
-        img_id = ann["image_id"]
-        if img_id not in image_annotations:
-            image_annotations[img_id] = []
-        image_annotations[img_id].append(ann)
-
-    # COCO category_id → 0-indexed class ID
-    # COCO categories are 1-indexed, we need 0-indexed for YOLO
-    cat_id_to_idx = {}
-    for i, cat in enumerate(sorted(coco["categories"], key=lambda c: c["id"])):
-        cat_id_to_idx[cat["id"]] = i
-
-    stats = {"images": 0, "annotations": 0, "skipped_no_file": 0}
-
-    for img_id, img_info in id_to_image.items():
-        filename = img_info["file_name"]
-        # Handle nested paths in file_name (e.g., "image/image/xxx.jpg")
-        src_path = images_dir / filename
-        if not src_path.exists():
-            # Try just the basename
-            src_path = images_dir / Path(filename).name
+    for filename, entry in data.items():
+        img_name = entry.get("name", filename)
+        src_path = images_dir / img_name
         if not src_path.exists():
             stats["skipped_no_file"] += 1
             continue
 
-        img_w = img_info["width"]
-        img_h = img_info["height"]
+        # Get image dimensions for normalization
+        try:
+            img = PILImage.open(src_path)
+            img_w, img_h = img.size
+        except Exception:
+            stats["skipped_no_file"] += 1
+            continue
 
         # Copy image
-        dest_img = output_images_dir / Path(filename).name
+        dest_img = output_images_dir / img_name
         if not dest_img.exists():
             shutil.copy2(src_path, dest_img)
 
-        # Write YOLO label
-        label_path = output_labels_dir / f"{Path(filename).stem}.txt"
+        # Convert regions to YOLO label lines
         lines = []
-
-        for ann in image_annotations.get(img_id, []):
-            cls_idx = cat_id_to_idx.get(ann["category_id"])
-            if cls_idx is None:
+        for region in entry.get("regions", []):
+            cls_name = region.get("class", "")
+            cls_id = VEHIDE_CLASS_TO_ID.get(cls_name)
+            if cls_id is None:
                 continue
 
-            if use_segmentation and ann.get("segmentation"):
-                # Polygon segmentation → normalized coords
-                seg = ann["segmentation"]
-                if isinstance(seg, list) and len(seg) > 0:
-                    # Take first polygon (COCO can have multiple)
-                    poly = seg[0]
-                    if len(poly) < 6:  # need at least 3 points
-                        continue
-                    # Normalize: [x1, y1, x2, y2, ...] → [x1/w, y1/h, ...]
-                    normalized = []
-                    for j in range(0, len(poly), 2):
-                        nx = poly[j] / img_w
-                        ny = poly[j + 1] / img_h
-                        # Clamp to [0, 1]
-                        nx = max(0.0, min(1.0, nx))
-                        ny = max(0.0, min(1.0, ny))
-                        normalized.extend([nx, ny])
-                    coords_str = " ".join(f"{v:.6f}" for v in normalized)
-                    lines.append(f"{cls_idx} {coords_str}")
-                    stats["annotations"] += 1
-            else:
-                # Bounding box → YOLO format (cx, cy, w, h normalized)
-                bbox = ann.get("bbox")
-                if bbox is None or len(bbox) != 4:
-                    continue
-                bx, by, bw, bh = bbox
-                cx = (bx + bw / 2) / img_w
-                cy = (by + bh / 2) / img_h
-                nw = bw / img_w
-                nh = bh / img_h
-                # Clamp
-                cx = max(0.0, min(1.0, cx))
-                cy = max(0.0, min(1.0, cy))
-                nw = max(0.0, min(1.0, nw))
-                nh = max(0.0, min(1.0, nh))
-                lines.append(f"{cls_idx} {cx:.6f} {cy:.6f} {nw:.6f} {nh:.6f}")
-                stats["annotations"] += 1
+            all_x = region.get("all_x", [])
+            all_y = region.get("all_y", [])
 
+            if len(all_x) < 3 or len(all_x) != len(all_y):
+                stats["skipped_bad_poly"] += 1
+                continue
+
+            # Normalize polygon coordinates
+            normalized = []
+            for x, y in zip(all_x, all_y):
+                nx = max(0.0, min(1.0, x / img_w))
+                ny = max(0.0, min(1.0, y / img_h))
+                normalized.extend([nx, ny])
+
+            coords_str = " ".join(f"{v:.6f}" for v in normalized)
+            lines.append(f"{cls_id} {coords_str}")
+            stats["annotations"] += 1
+
+        # Write label file (empty if no valid regions)
+        label_path = output_labels_dir / f"{Path(img_name).stem}.txt"
         label_path.write_text("\n".join(lines) + "\n" if lines else "")
         stats["images"] += 1
 
@@ -126,19 +95,19 @@ if __name__ == "__main__":
     import sys
 
     if len(sys.argv) < 4:
-        print("Usage: python coco_to_yolo.py <coco.json> <images_dir> <output_dir> [--bbox]")
+        print("Usage: python coco_to_yolo.py <via_annotations.json> <images_dir> <output_dir>")
         sys.exit(1)
 
-    coco_json = Path(sys.argv[1])
+    via_json = Path(sys.argv[1])
     images = Path(sys.argv[2])
     output = Path(sys.argv[3])
-    use_seg = "--bbox" not in sys.argv
 
-    stats = coco_to_yolo(
-        coco_json, images,
+    stats = via_to_yolo(
+        via_json, images,
         output / "images", output / "labels",
-        use_segmentation=use_seg,
     )
     print(f"Converted: {stats['images']} images, {stats['annotations']} annotations")
     if stats["skipped_no_file"] > 0:
         print(f"Skipped (missing files): {stats['skipped_no_file']}")
+    if stats["skipped_bad_poly"] > 0:
+        print(f"Skipped (bad polygons): {stats['skipped_bad_poly']}")
