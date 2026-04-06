@@ -72,10 +72,18 @@ def compute_image_hash(image_path: Path) -> str:
 
 
 def deduplicate_images(image_paths: list[Path], threshold: int = 5) -> list[Path]:
+    from PIL import ImageFile
+    ImageFile.LOAD_TRUNCATED_IMAGES = True
+
     seen_hashes: list[imagehash.ImageHash] = []
     unique: list[Path] = []
+    skipped = 0
     for p in image_paths:
-        h = imagehash.phash(Image.open(p))
+        try:
+            h = imagehash.phash(Image.open(p))
+        except Exception:
+            skipped += 1
+            continue
         is_dup = False
         for existing_hash in seen_hashes:
             if h - existing_hash < threshold:
@@ -84,6 +92,8 @@ def deduplicate_images(image_paths: list[Path], threshold: int = 5) -> list[Path
         if not is_dup:
             seen_hashes.append(h)
             unique.append(p)
+    if skipped > 0:
+        print(f"  Skipped {skipped} corrupted/unreadable images")
     return unique
 
 
