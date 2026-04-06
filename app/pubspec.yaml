@@ -1,0 +1,39 @@
+name: chekar_app
+description: "CheKar - Car inspection app for Egypt"
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.4
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  flutter_riverpod: ^2.6.1
+  go_router: ^14.8.1
+  dio: ^5.7.0
+  shared_preferences: ^2.5.3
+  camerawesome: ^2.1.0
+  share_plus: ^10.1.4
+  flutter_image_compress: ^2.3.0
+  path_provider: ^2.1.5
+  flutter_exif_rotation: ^0.5.1
+  intl: ^0.20.2
+  google_fonts: ^6.2.1
+  image_picker: ^1.1.2
+  camera: ^0.11.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  generate: true
+  uses-material-design: true
+
+  assets:
+    - assets/images/

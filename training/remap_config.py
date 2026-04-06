@@ -1,0 +1,61 @@
+"""Class remapping configuration for merging datasets into CarDD 6-class standard."""
+
+CARDD_CLASSES = {
+    0: "dent",
+    1: "scratch",
+    2: "crack",
+    3: "glass_shatter",
+    4: "lamp_broken",
+    5: "tire_flat",
+}
+
+DATASET_REMAPS: dict[str, dict[int, int | None]] = {
+    "dammage-detection-in-car": {
+        0: None, 1: 0, 2: 0, 3: None, 4: 0, 5: 0, 6: 3, 7: None,
+        8: 4, 9: None, 10: 1, 11: 3, 12: None, 13: None, 14: 0, 15: 0,
+        16: 0, 17: 0, 18: None, 19: 4, 20: None, 21: 4, 22: 0, 23: None, 24: 0,
+    },
+    "car-damaged-severity-detection": {
+        0: 2, 1: 5, 2: 2, 3: 0, 4: 1, 5: 0, 6: 1, 7: 0, 8: 2, 9: 1,
+    },
+    "car-damage-4-classes": {
+        0: 2, 1: 0, 2: 3, 3: 1,
+    },
+    # VehiDE: COCO 1-indexed IDs, converted to 0-indexed in the COCO→YOLO converter
+    # 0: broken_lights (be_den)     → lamp_broken (4)
+    # 1: lost_parts (mat_bo_phan)   → DROP (no equivalent)
+    # 2: dents (mop_lom)            → dent (0)
+    # 3: torn (rach)                → scratch (1) — torn panels map closest to scratch
+    # 4: punctured (thung)          → crack (2) — puncture holes map to crack
+    # 5: scratch (tray_son)         → scratch (1)
+    # 6: broken_glass (vo_kinh)     → glass_shatter (3)
+    "vehide": {
+        0: 4,     # broken_lights → lamp_broken
+        1: None,  # lost_parts → DROP
+        2: 0,     # dents → dent
+        3: 1,     # torn → scratch
+        4: 2,     # punctured → crack
+        5: 1,     # scratch → scratch
+        6: 3,     # broken_glass → glass_shatter
+    },
+}
+
+DROP_CLASS_IDS: dict[str, set[int]] = {
+    "dammage-detection-in-car": {0, 3, 7, 9, 12, 13, 18, 20, 23},
+    "vehide": {1},  # lost_parts has no CarDD equivalent
+}
+
+LIGHT_PART_CLASSES = {
+    "front_left_light", "front_right_light",
+    "back_left_light", "back_right_light",
+    "front_light", "back_light",
+}
+
+GLASS_PART_CLASSES = {"front_glass", "back_glass"}
+
+
+def remap_class_id(dataset_name: str, original_id: int) -> int | None:
+    remap = DATASET_REMAPS.get(dataset_name)
+    if remap is None:
+        return None
+    return remap.get(original_id)

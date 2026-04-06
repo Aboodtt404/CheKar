@@ -1,0 +1,50 @@
+{
+  "dent": {
+    "cairo": [500, 1500],
+    "alexandria": [400, 1200],
+    "unit": "per_panel",
+    "notes_ar": "حسب حجم الخبطة ومكانها — PDR أرخص من السمكرة"
+  },
+  "scratch": {
+    "cairo": [300, 1000],
+    "alexandria": [250, 800],
+    "unit": "per_panel",
+    "notes_ar": "الخدش البسيط ممكن يتلم بالبولش — العميق محتاج دهان"
+  },
+  "crack": {
+    "cairo": [2000, 6000],
+    "alexandria": [1500, 5000],
+    "unit": "per_panel",
+    "notes_ar": "الشروخ غالبا محتاجة لحام وسمكرة ودهان"
+  },
+  "glass_shatter": {
+    "cairo": [3500, 8000],
+    "alexandria": [3000, 7000],
+    "unit": "per_unit",
+    "notes_ar": "أصلي أغلى من الصيني بكتير"
+  },
+  "lamp_broken": {
+    "cairo": [2000, 12000],
+    "alexandria": [1800, 10000],
+    "unit": "per_unit",
+    "notes_ar": "اللمبة LED والبروجيكتور أغلى بكتير من العادية"
+  },
+  "tire_flat": {
+    "cairo": [1200, 3500],
+    "alexandria": [1100, 3200],
+    "unit": "per_tire",
+    "notes_ar": "حسب الماركة والمقاس"
+  },
+  "repaint_single_panel": {
+    "cairo": [2000, 4500],
+    "alexandria": [1500, 3500],
+    "unit": "per_panel",
+    "notes_ar": "حسب نوع الدهان وموديل العربية"
+  },
+  "repaint_full_body": {
+    "cairo": [15000, 30000],
+    "alexandria": [12000, 25000],
+    "unit": "per_car",
+    "notes_ar": "الدهان الميتاليك أغلى"
+  }
+}
