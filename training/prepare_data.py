@@ -304,6 +304,39 @@ def run_pipeline(datasets_dir: Path, output_dir: Path, max_negatives: int = 500)
     stats = stratified_split(merged_dir, final_dir)
     print(f"  Train: {stats['train']}, Val: {stats['val']}, Test: {stats['test']}")
 
+    # Convert any bbox labels (5 values) to rectangle polygons (for seg training)
+    print("\nConverting bbox labels to polygon format for seg training...")
+    bbox_converted = 0
+    for split in ["train", "val", "test"]:
+        lbl_dir = final_dir / split / "labels"
+        if not lbl_dir.exists():
+            continue
+        for lbl_path in sorted(lbl_dir.glob("*.txt")):
+            content = lbl_path.read_text().strip()
+            if not content:
+                continue
+            new_lines = []
+            changed = False
+            for line in content.split("\n"):
+                parts = line.strip().split()
+                if len(parts) == 5:
+                    # bbox format: class_id cx cy w h → polygon: class_id x1 y1 x2 y1 x2 y2 x1 y2
+                    cls_id = parts[0]
+                    cx, cy, w, h = float(parts[1]), float(parts[2]), float(parts[3]), float(parts[4])
+                    x1 = max(0.0, cx - w / 2)
+                    y1 = max(0.0, cy - h / 2)
+                    x2 = min(1.0, cx + w / 2)
+                    y2 = min(1.0, cy + h / 2)
+                    new_lines.append(f"{cls_id} {x1:.6f} {y1:.6f} {x2:.6f} {y1:.6f} {x2:.6f} {y2:.6f} {x1:.6f} {y2:.6f}")
+                    bbox_converted += 1
+                    changed = True
+                elif len(parts) > 5:
+                    new_lines.append(line.strip())
+                # skip malformed lines
+            if changed:
+                lbl_path.write_text("\n".join(new_lines) + "\n")
+    print(f"  Converted {bbox_converted} bbox annotations to polygons")
+
     print("\nClass distribution (train):")
     class_counts = Counter()
     for lbl in sorted((final_dir / "train" / "labels").glob("*.txt")):
