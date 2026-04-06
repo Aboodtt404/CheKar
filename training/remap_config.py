@@ -21,10 +21,28 @@ DATASET_REMAPS: dict[str, dict[int, int | None]] = {
     "car-damage-4-classes": {
         0: 2, 1: 0, 2: 3, 3: 1,
     },
+    # VehiDE: COCO 1-indexed IDs, converted to 0-indexed in the COCO→YOLO converter
+    # 0: broken_lights (be_den)     → lamp_broken (4)
+    # 1: lost_parts (mat_bo_phan)   → DROP (no equivalent)
+    # 2: dents (mop_lom)            → dent (0)
+    # 3: torn (rach)                → scratch (1) — torn panels map closest to scratch
+    # 4: punctured (thung)          → crack (2) — puncture holes map to crack
+    # 5: scratch (tray_son)         → scratch (1)
+    # 6: broken_glass (vo_kinh)     → glass_shatter (3)
+    "vehide": {
+        0: 4,     # broken_lights → lamp_broken
+        1: None,  # lost_parts → DROP
+        2: 0,     # dents → dent
+        3: 1,     # torn → scratch
+        4: 2,     # punctured → crack
+        5: 1,     # scratch → scratch
+        6: 3,     # broken_glass → glass_shatter
+    },
 }
 
 DROP_CLASS_IDS: dict[str, set[int]] = {
     "dammage-detection-in-car": {0, 3, 7, 9, 12, 13, 18, 20, 23},
+    "vehide": {1},  # lost_parts has no CarDD equivalent
 }
 
 LIGHT_PART_CLASSES = {

@@ -145,6 +145,88 @@ def stratified_split(merged_dir: Path, output_dir: Path, train_ratio: float = 0.
     return stats
 
 
+def process_vehide(dataset_dir: Path, output_dir: Path) -> dict:
+    """Process VehiDE dataset: COCO JSON → YOLO labels → remap to CarDD classes."""
+    from training.coco_to_yolo import coco_to_yolo
+    from training.remap_config import remap_class_id
+    import shutil
+
+    stats = {"images": 0, "with_labels": 0, "background": 0}
+
+    # VehiDE has COCO-format annotations — convert to YOLO first
+    temp_dir = output_dir / "_vehide_temp"
+
+    # Process train and val splits
+    splits = []
+    # Train annotations
+    train_json = dataset_dir / "coco_annotations.json"
+    train_images = dataset_dir / "image" / "image"
+    if not train_images.exists():
+        train_images = dataset_dir / "image"
+    if not train_images.exists():
+        train_images = dataset_dir
+    if train_json.exists():
+        splits.append(("train", train_json, train_images))
+
+    # Val annotations
+    val_json = dataset_dir / "coco_annotations_val.json"
+    val_images = dataset_dir / "validation" / "validation"
+    if not val_images.exists():
+        val_images = dataset_dir / "validation"
+    if not val_images.exists():
+        val_images = dataset_dir
+    if val_json.exists():
+        splits.append(("val", val_json, val_images))
+
+    for split_name, json_path, img_dir in splits:
+        print(f"    Converting VehiDE {split_name} from COCO to YOLO...")
+        temp_split = temp_dir / split_name
+        convert_stats = coco_to_yolo(
+            json_path, img_dir,
+            temp_split / "images", temp_split / "labels",
+            use_segmentation=True,
+        )
+        print(f"    Converted {convert_stats['images']} images, {convert_stats['annotations']} annotations")
+
+    # Now remap YOLO labels to CarDD classes and merge into output
+    out_images = output_dir / "all" / "images"
+    out_labels = output_dir / "all" / "labels"
+    out_images.mkdir(parents=True, exist_ok=True)
+    out_labels.mkdir(parents=True, exist_ok=True)
+
+    for split_dir in sorted(temp_dir.iterdir()):
+        if not split_dir.is_dir():
+            continue
+        imgs_dir = split_dir / "images"
+        lbls_dir = split_dir / "labels"
+        if not imgs_dir.exists():
+            continue
+        for img_path in sorted(imgs_dir.glob("*")):
+            if img_path.suffix.lower() not in {".jpg", ".jpeg", ".png"}:
+                continue
+            label_path = lbls_dir / f"{img_path.stem}.txt"
+            new_name = f"vehide_{img_path.name}"
+            out_img = out_images / new_name
+            out_lbl = out_labels / f"vehide_{img_path.stem}.txt"
+
+            shutil.copy2(img_path, out_img)
+            stats["images"] += 1
+
+            if label_path.exists():
+                has_labels = remap_label_file(label_path, out_lbl, "vehide")
+                if has_labels:
+                    stats["with_labels"] += 1
+                else:
+                    stats["background"] += 1
+            else:
+                out_lbl.write_text("")
+                stats["background"] += 1
+
+    # Clean up temp dir
+    shutil.rmtree(temp_dir, ignore_errors=True)
+    return stats
+
+
 def run_pipeline(datasets_dir: Path, output_dir: Path, max_negatives: int = 500) -> None:
     import yaml
     from training.remap_config import CARDD_CLASSES
@@ -165,6 +247,17 @@ def run_pipeline(datasets_dir: Path, output_dir: Path, max_negatives: int = 500)
         print(f"\nProcessing {name}...")
         stats = process_dataset(path, name, merged_dir)
         print(f"  Images: {stats['images']}, With labels: {stats['with_labels']}, Background: {stats['background']}")
+
+    # Process VehiDE (COCO format — needs conversion)
+    vehide_dir = datasets_dir / "vehide"
+    if not vehide_dir.exists():
+        vehide_dir = datasets_dir / "vehide-dataset"
+    if vehide_dir.exists():
+        print(f"\nProcessing VehiDE (COCO → YOLO conversion)...")
+        stats = process_vehide(vehide_dir, merged_dir)
+        print(f"  Images: {stats['images']}, With labels: {stats['with_labels']}, Background: {stats['background']}")
+    else:
+        print(f"\nVehiDE not found at {datasets_dir}/vehide — skipping")
 
     print(f"\nSelecting {max_negatives} hard negatives from car-parts...")
     parts_dir = datasets_dir / "car-parts-ulbml"
