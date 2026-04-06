@@ -8,9 +8,11 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:camera/camera.dart';
 import 'package:flutter_exif_rotation/flutter_exif_rotation.dart';
+import 'package:iconsax_flutter/iconsax_flutter.dart';
 import '../config/theme.dart';
 import '../models/inspection.dart';
 import '../providers/inspection_provider.dart';
+import '../services/car_validator.dart';
 import '../widgets/camera_overlay.dart';
 import '../widgets/capture_dots.dart';
 
@@ -115,6 +117,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
   bool _isCapturing = false;
   CameraController? _cameraController;
   bool _cameraReady = false;
+  final CarValidator _carValidator = CarValidator();
 
   // Shutter glow animation
   late AnimationController _glowController;
@@ -166,6 +169,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
   void dispose() {
     _glowController.dispose();
     _cameraController?.dispose();
+    _carValidator.dispose();
     super.dispose();
   }
 
@@ -184,6 +188,29 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
       } else {
         // Fallback: generate placeholder (emulator)
         photo = await _generatePlaceholderPhoto(_currentStep);
+      }
+
+      // Validate first photo is a car (on-device, ~100ms)
+      if (_currentStep == 0) {
+        try {
+          final isCar = await _carValidator.isCar(photo);
+          if (!isCar && mounted) {
+            setState(() => _isCapturing = false);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'الصورة دي مش صورة عربية. صور العربية من الأمام وحاول تاني.',
+                  style: GoogleFonts.cairo(fontWeight: FontWeight.w600),
+                ),
+                backgroundColor: CheKarColors.scoreBad,
+                duration: const Duration(seconds: 3),
+              ),
+            );
+            return;
+          }
+        } catch (_) {
+          // If validator fails, skip validation and proceed
+        }
       }
 
       // Upload
@@ -230,7 +257,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
         textDirection: TextDirection.rtl,
         child: AlertDialog(
           backgroundColor: CheKarColors.darkCard,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Text(
             'إلغاء الفحص',
             style: GoogleFonts.cairo(
@@ -309,7 +336,7 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
                         // Close button
                         _TopBarButton(
                           onTap: _onClose,
-                          child: const Icon(Icons.close_rounded, color: Colors.white, size: 20),
+                          child: const Icon(Iconsax.close_circle, color: Colors.white, size: 20),
                         ),
 
                         // Mode badge
@@ -477,7 +504,7 @@ class _DarkFallback extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.camera_alt_rounded, size: 64, color: CheKarColors.orange.withOpacity(0.4)),
+            Icon(Iconsax.camera, size: 64, color: CheKarColors.orange.withOpacity(0.4)),
             const SizedBox(height: 12),
             Text(
               'اضغط الزرار عشان تصور',
@@ -502,12 +529,12 @@ class _TopBarButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 40,
-        height: 40,
+        width: 42,
+        height: 42,
         decoration: BoxDecoration(
-          color: Colors.black45,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white12),
+          color: Colors.black.withOpacity(0.5),
+          borderRadius: BorderRadius.circular(13),
+          border: Border.all(color: Colors.white.withOpacity(0.1)),
         ),
         child: Center(child: child),
       ),
@@ -566,7 +593,7 @@ class _ShutterButton extends StatelessWidget {
                     ),
                   )
                 : const Icon(
-                    Icons.camera_alt_rounded,
+                    Iconsax.camera,
                     color: Colors.white,
                     size: 32,
                   ),

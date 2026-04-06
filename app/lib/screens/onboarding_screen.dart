@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:iconsax_flutter/iconsax_flutter.dart';
 import '../config/theme.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/chekar_logo.dart';
@@ -14,14 +15,27 @@ class OnboardingScreen extends ConsumerStatefulWidget {
   ConsumerState<OnboardingScreen> createState() => _OnboardingScreenState();
 }
 
-class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
+class _OnboardingScreenState extends ConsumerState<OnboardingScreen>
+    with SingleTickerProviderStateMixin {
   final _controller = TextEditingController();
   bool _isLoading = false;
   String? _error;
+  bool _isFocused = false;
+  late AnimationController _pulseController;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2000),
+    )..repeat(reverse: true);
+  }
 
   @override
   void dispose() {
     _controller.dispose();
+    _pulseController.dispose();
     super.dispose();
   }
 
@@ -66,46 +80,79 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        backgroundColor: CheKarColors.dark,
+        backgroundColor: CheKarColors.darkDeep,
         body: NoiseBackground(
           child: Stack(
             children: [
-              // Car photo background with dark overlay
+              // Car photo background
               Positioned.fill(
                 child: Image.asset(
                   'assets/images/mechanic_bg.jpg',
                   fit: BoxFit.cover,
                 ),
               ),
-              // Dark overlay (88% opacity)
+              // Multi-layer dark overlay for depth
               Positioned.fill(
                 child: Container(
-                  color: CheKarColors.dark.withOpacity(0.88),
-                ),
-              ),
-
-              // Asymmetric orange radial glow — offset top-right
-              Positioned(
-                top: -120,
-                right: -80,
-                child: Container(
-                  width: 420,
-                  height: 420,
                   decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: RadialGradient(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
                       colors: [
-                        CheKarColors.orange.withOpacity(0.18),
-                        CheKarColors.orange.withOpacity(0.06),
-                        Colors.transparent,
+                        CheKarColors.darkDeep.withOpacity(0.75),
+                        CheKarColors.darkDeep.withOpacity(0.92),
+                        CheKarColors.darkDeep,
                       ],
-                      stops: const [0.0, 0.45, 1.0],
+                      stops: const [0.0, 0.5, 0.85],
                     ),
                   ),
                 ),
               ),
 
-              // Large background Arabic tagline — design element only
+              // Radial orange glow — top right
+              Positioned(
+                top: -100,
+                right: -60,
+                child: AnimatedBuilder(
+                  animation: _pulseController,
+                  builder: (_, __) => Container(
+                    width: 380,
+                    height: 380,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: RadialGradient(
+                        colors: [
+                          CheKarColors.orange.withOpacity(0.12 + 0.04 * _pulseController.value),
+                          CheKarColors.orange.withOpacity(0.04),
+                          Colors.transparent,
+                        ],
+                        stops: const [0.0, 0.45, 1.0],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+              // Secondary glow — bottom left
+              Positioned(
+                bottom: -80,
+                left: -60,
+                child: Container(
+                  width: 300,
+                  height: 300,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        CheKarColors.orange.withOpacity(0.06),
+                        Colors.transparent,
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+              // Large background Arabic tagline
               Positioned(
                 top: MediaQuery.of(context).size.height * 0.08,
                 left: -20,
@@ -116,7 +163,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   style: GoogleFonts.cairo(
                     fontSize: 40,
                     fontWeight: FontWeight.w900,
-                    color: Colors.white.withOpacity(0.03),
+                    color: Colors.white.withOpacity(0.025),
                     height: 1.2,
                   ),
                 ),
@@ -126,123 +173,183 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               SafeArea(
                 child: Center(
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 40),
+                    padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 40),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                      // Logo
-                      const CheKarLogo(fontSize: 40),
+                        // Logo
+                        const CheKarLogo(fontSize: 42),
 
+                        const SizedBox(height: 12),
 
-                      const SizedBox(height: 32),
-
-                      // Explainer text
-                      Text(
-                        'صور العربية...\nهنفحصها بالذكاء الاصطناعي...\nهتعرف حالتها في دقيقة',
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.cairo(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: const Color(0xFFA8A29E),
-                          height: 1.9,
-                        ),
-                      ),
-
-                      const SizedBox(height: 48),
-
-                      // Invite code field
-                      TextField(
-                        controller: _controller,
-                        textDirection: TextDirection.rtl,
-                        textAlign: TextAlign.right,
-                        keyboardType: TextInputType.visiblePassword,
-                        style: GoogleFonts.cairo(
-                          color: Colors.white,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w500,
-                        ),
-                        decoration: InputDecoration(
-                          filled: true,
-                          fillColor: const Color(0xFF272738),
-                          hintText: 'ادخل كود الدعوة',
-                          hintStyle: GoogleFonts.cairo(
-                            color: const Color(0xFF78716C),
-                            fontSize: 15,
+                        // Tagline
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: CheKarColors.orange.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: CheKarColors.orange.withOpacity(0.2),
+                            ),
                           ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                            borderSide: const BorderSide(color: Color(0xFF3A3A4D)),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                            borderSide: const BorderSide(color: Color(0xFF3A3A4D)),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                            borderSide: const BorderSide(color: CheKarColors.orange, width: 1.5),
-                          ),
-                          errorBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(14),
-                            borderSide: const BorderSide(color: Color(0xFFDC2626)),
-                          ),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-                        ),
-                        onSubmitted: (_) => _submit(),
-                      ),
-
-                      // Error message
-                      if (_error != null)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 10),
                           child: Text(
-                            _error!,
-                            textAlign: TextAlign.center,
+                            'فحص عربيات بالذكاء الاصطناعي',
                             style: GoogleFonts.cairo(
-                              color: const Color(0xFFDC2626),
-                              fontSize: 13,
+                              fontSize: 12,
                               fontWeight: FontWeight.w600,
+                              color: CheKarColors.orangeLight,
                             ),
                           ),
                         ),
 
-                      const SizedBox(height: 16),
+                        const SizedBox(height: 36),
 
-                      // Start button
-                      SizedBox(
-                        width: double.infinity,
-                        height: 54,
-                        child: ElevatedButton(
-                          onPressed: _isLoading ? null : _submit,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: CheKarColors.orange,
-                            foregroundColor: Colors.white,
-                            disabledBackgroundColor: CheKarColors.orange.withOpacity(0.6),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                            elevation: 0,
+                        // Explainer text
+                        Text(
+                          'صور العربية...\nهنفحصها بالذكاء الاصطناعي...\nهتعرف حالتها في دقيقة',
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.cairo(
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.white.withOpacity(0.45),
+                            height: 1.9,
                           ),
-                          child: _isLoading
-                              ? const SizedBox(
-                                  width: 22,
-                                  height: 22,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2.5,
-                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                  ),
-                                )
-                              : Text(
-                                  'ابدأ',
-                                  style: GoogleFonts.cairo(
-                                    fontSize: 17,
-                                    fontWeight: FontWeight.w700,
-                                    color: Colors.white,
+                        ),
+
+                        const SizedBox(height: 48),
+
+                        // Invite code field with glow on focus
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 300),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: _isFocused
+                                ? [
+                                    BoxShadow(
+                                      color: CheKarColors.orange.withOpacity(0.15),
+                                      blurRadius: 20,
+                                      spreadRadius: 2,
+                                    ),
+                                  ]
+                                : [],
+                          ),
+                          child: Focus(
+                            onFocusChange: (focused) => setState(() => _isFocused = focused),
+                            child: TextField(
+                              controller: _controller,
+                              textDirection: TextDirection.rtl,
+                              textAlign: TextAlign.right,
+                              keyboardType: TextInputType.visiblePassword,
+                              style: GoogleFonts.cairo(
+                                color: Colors.white,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              decoration: InputDecoration(
+                                filled: true,
+                                fillColor: CheKarColors.darkSurface,
+                                hintText: 'ادخل كود الدعوة',
+                                hintStyle: GoogleFonts.cairo(
+                                  color: Colors.white.withOpacity(0.25),
+                                  fontSize: 15,
+                                ),
+                                prefixIcon: Padding(
+                                  padding: const EdgeInsets.only(right: 12, left: 4),
+                                  child: Icon(
+                                    Iconsax.key_square,
+                                    color: _isFocused
+                                        ? CheKarColors.orange
+                                        : Colors.white.withOpacity(0.2),
+                                    size: 20,
                                   ),
                                 ),
+                                prefixIconConstraints: const BoxConstraints(minWidth: 48),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  borderSide: const BorderSide(color: CheKarColors.borderSubtle),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  borderSide: const BorderSide(color: CheKarColors.borderSubtle),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  borderSide: const BorderSide(color: CheKarColors.orange, width: 1.5),
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 17),
+                              ),
+                              onSubmitted: (_) => _submit(),
+                            ),
+                          ),
                         ),
-                      ),
 
-                      const SizedBox(height: 40),
-                    ],
-                  ),
+                        // Error message
+                        if (_error != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 12),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: CheKarColors.scoreBad.withOpacity(0.12),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: CheKarColors.scoreBad.withOpacity(0.25)),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Iconsax.danger, size: 16, color: CheKarColors.scoreBad),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    _error!,
+                                    style: GoogleFonts.cairo(
+                                      color: CheKarColors.scoreBad,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+
+                        const SizedBox(height: 20),
+
+                        // Start button
+                        SizedBox(
+                          width: double.infinity,
+                          height: 56,
+                          child: ElevatedButton(
+                            onPressed: _isLoading ? null : _submit,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: CheKarColors.orange,
+                              foregroundColor: Colors.white,
+                              disabledBackgroundColor: CheKarColors.orange.withOpacity(0.5),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                              elevation: 0,
+                            ),
+                            child: _isLoading
+                                ? const SizedBox(
+                                    width: 22,
+                                    height: 22,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.5,
+                                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                    ),
+                                  )
+                                : Text(
+                                    'ابدأ',
+                                    style: GoogleFonts.cairo(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 40),
+                      ],
+                    ),
                   ),
                 ),
               ),

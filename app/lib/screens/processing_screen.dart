@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:iconsax_flutter/iconsax_flutter.dart';
 import '../config/theme.dart';
 import '../models/inspection.dart';
 import '../providers/inspection_provider.dart';
@@ -29,12 +30,12 @@ class _ProcessingScreenState extends ConsumerState<ProcessingScreen>
   int _displayPercent = 0;
   bool _navigated = false;
 
-  static const List<Map<String, dynamic>> _steps = [
-    {'label': 'تحليل الصور', 'icon': Icons.image_search_rounded},
-    {'label': 'كشف الخبطات والخدوش', 'icon': Icons.auto_fix_high_rounded},
-    {'label': 'فحص الدهان والحوادث', 'icon': Icons.color_lens_rounded},
-    {'label': 'تقييم حالة العربية', 'icon': Icons.verified_rounded},
-    {'label': 'إعداد التقرير', 'icon': Icons.description_rounded},
+  static final List<Map<String, dynamic>> _steps = [
+    {'label': 'تحليل الصور', 'icon': Iconsax.camera},
+    {'label': 'كشف الخبطات والخدوش', 'icon': Iconsax.flash_1},
+    {'label': 'فحص الدهان والحوادث', 'icon': Iconsax.brush_1},
+    {'label': 'تقييم حالة العربية', 'icon': Iconsax.shield_tick},
+    {'label': 'إعداد التقرير', 'icon': Iconsax.document_text},
   ];
 
   @override
@@ -75,7 +76,6 @@ class _ProcessingScreenState extends ConsumerState<ProcessingScreen>
         if (_activeStep < _steps.length - 1) {
           _activeStep++;
         }
-        // Advance percentage: each step covers roughly 20% of 95% total
         final target = math.min(95, (_activeStep + 1) * 19);
         _displayPercent = target;
       });
@@ -110,7 +110,6 @@ class _ProcessingScreenState extends ConsumerState<ProcessingScreen>
   Widget build(BuildContext context) {
     final inspState = ref.watch(inspectionProvider);
 
-    // React to status changes
     final current = inspState.current;
     if (current != null && !_navigated) {
       if (current.status == InspectionStatus.completed ||
@@ -126,11 +125,11 @@ class _ProcessingScreenState extends ConsumerState<ProcessingScreen>
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
-        backgroundColor: CheKarColors.dark,
+        backgroundColor: CheKarColors.darkDeep,
         body: NoiseBackground(
           child: Stack(
             children: [
-              // Asymmetric orange glow (top-left offset)
+              // Asymmetric orange glow
               Positioned(
                 top: -120,
                 left: -80,
@@ -141,7 +140,7 @@ class _ProcessingScreenState extends ConsumerState<ProcessingScreen>
                     shape: BoxShape.circle,
                     gradient: RadialGradient(
                       colors: [
-                        CheKarColors.orange.withOpacity(0.18),
+                        CheKarColors.orange.withOpacity(0.15),
                         CheKarColors.orange.withOpacity(0.0),
                       ],
                     ),
@@ -184,7 +183,7 @@ class _ProcessingScreenState extends ConsumerState<ProcessingScreen>
       child: Stack(
         alignment: Alignment.center,
         children: [
-          // Orange halo behind ring
+          // Orange halo
           Container(
             width: 180,
             height: 180,
@@ -192,7 +191,7 @@ class _ProcessingScreenState extends ConsumerState<ProcessingScreen>
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: CheKarColors.orange.withOpacity(0.22),
+                  color: CheKarColors.orange.withOpacity(0.2),
                   blurRadius: 48,
                   spreadRadius: 12,
                 ),
@@ -200,7 +199,7 @@ class _ProcessingScreenState extends ConsumerState<ProcessingScreen>
             ),
           ),
 
-          // Counter-rotating outer ring (very subtle orange)
+          // Counter-rotating outer ring
           AnimatedBuilder(
             animation: _counterRingController,
             builder: (_, __) => Transform.rotate(
@@ -208,14 +207,14 @@ class _ProcessingScreenState extends ConsumerState<ProcessingScreen>
               child: CustomPaint(
                 size: const Size(180, 180),
                 painter: _SubtleRingPainter(
-                  color: CheKarColors.orange.withOpacity(0.12),
+                  color: CheKarColors.orange.withOpacity(0.1),
                   strokeWidth: 3,
                 ),
               ),
             ),
           ),
 
-          // Main spinning ring (dark base + orange arc)
+          // Main spinning ring
           AnimatedBuilder(
             animation: _ringController,
             builder: (_, __) => Transform.rotate(
@@ -231,7 +230,7 @@ class _ProcessingScreenState extends ConsumerState<ProcessingScreen>
             ),
           ),
 
-          // Center percentage text
+          // Center percentage
           Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -270,7 +269,7 @@ class _ProcessingScreenState extends ConsumerState<ProcessingScreen>
           style: GoogleFonts.cairo(
             fontSize: 13,
             fontWeight: FontWeight.w500,
-            color: Colors.white.withOpacity(0.45),
+            color: Colors.white.withOpacity(0.35),
           ),
         ),
       ],
@@ -303,16 +302,16 @@ class _ProcessingScreenState extends ConsumerState<ProcessingScreen>
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 72,
-              height: 72,
+              width: 80,
+              height: 80,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: CheKarColors.scoreBad.withOpacity(0.15),
+                color: CheKarColors.scoreBad.withOpacity(0.12),
               ),
               child: const Icon(
-                Icons.error_outline_rounded,
+                Iconsax.close_circle,
                 color: CheKarColors.scoreBad,
-                size: 36,
+                size: 40,
               ),
             ),
             const SizedBox(height: 24),
@@ -324,13 +323,14 @@ class _ProcessingScreenState extends ConsumerState<ProcessingScreen>
                 color: Colors.white,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
             Text(
               ref.read(inspectionProvider).current?.error ?? 'الفحص اتوقف بسبب خطأ. حاول تاني.',
               textAlign: TextAlign.center,
               style: GoogleFonts.cairo(
                 fontSize: 14,
-                color: Colors.white.withOpacity(0.5),
+                color: Colors.white.withOpacity(0.4),
+                height: 1.5,
               ),
             ),
             const SizedBox(height: 32),
@@ -338,6 +338,13 @@ class _ProcessingScreenState extends ConsumerState<ProcessingScreen>
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () => context.go('/home'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: CheKarColors.orange,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  elevation: 0,
+                ),
                 child: Text(
                   'ارجع للرئيسية',
                   style: GoogleFonts.cairo(
@@ -354,11 +361,11 @@ class _ProcessingScreenState extends ConsumerState<ProcessingScreen>
   }
 }
 
-// ─── Step state enum ──────────────────────────────────────────────────────────
+// ── Step state ──────────────────────────────────────────────────────────────
 
 enum _StepState { done, active, pending }
 
-// ─── Step row widget ──────────────────────────────────────────────────────────
+// ── Step row ────────────────────────────────────────────────────────────────
 
 class _StepRow extends StatelessWidget {
   final String label;
@@ -383,31 +390,29 @@ class _StepRow extends StatelessWidget {
     Color textColor;
 
     if (isDone) {
-      circleColor = CheKarColors.scoreGood.withOpacity(0.18);
+      circleColor = CheKarColors.scoreGood.withOpacity(0.15);
       iconColor = CheKarColors.scoreGood;
-      textColor = Colors.white.withOpacity(0.4);
+      textColor = Colors.white.withOpacity(0.35);
     } else if (isActive) {
-      circleColor = CheKarColors.orange.withOpacity(0.18);
+      circleColor = CheKarColors.orange.withOpacity(0.15);
       iconColor = CheKarColors.orange;
       textColor = Colors.white;
     } else {
-      circleColor = Colors.white.withOpacity(0.06);
-      iconColor = Colors.white.withOpacity(0.2);
-      textColor = Colors.white.withOpacity(0.2);
+      circleColor = Colors.white.withOpacity(0.04);
+      iconColor = Colors.white.withOpacity(0.15);
+      textColor = Colors.white.withOpacity(0.15);
     }
 
     Widget circle = Container(
-      width: 38,
-      height: 38,
+      width: 40,
+      height: 40,
       decoration: BoxDecoration(
-        shape: BoxShape.circle,
         color: circleColor,
+        borderRadius: BorderRadius.circular(12),
       ),
       child: isDone
-          ? Icon(Icons.check_rounded, color: iconColor, size: 20)
-          : isActive
-              ? Icon(icon, color: iconColor, size: 20)
-              : Icon(icon, color: iconColor, size: 20),
+          ? Icon(Iconsax.tick_circle, color: iconColor, size: 20)
+          : Icon(icon, color: iconColor, size: 20),
     );
 
     if (isActive) {
@@ -415,13 +420,13 @@ class _StepRow extends StatelessWidget {
         animation: pulseAnimation,
         builder: (_, child) => Container(
           decoration: BoxDecoration(
-            shape: BoxShape.circle,
+            borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
                 color: CheKarColors.orange
-                    .withOpacity(0.35 * pulseAnimation.value),
+                    .withOpacity(0.25 * pulseAnimation.value),
                 blurRadius: 14 + 6 * pulseAnimation.value,
-                spreadRadius: 2,
+                spreadRadius: 1,
               ),
             ],
           ),
@@ -445,13 +450,17 @@ class _StepRow extends StatelessWidget {
               color: textColor,
             ),
           ),
+          if (isDone) ...[
+            const Spacer(),
+            Icon(Iconsax.tick_circle, size: 14, color: CheKarColors.scoreGood.withOpacity(0.5)),
+          ],
         ],
       ),
     );
   }
 }
 
-// ─── Custom painters ──────────────────────────────────────────────────────────
+// ── Custom painters ─────────────────────────────────────────────────────────
 
 class _SpinningRingPainter extends CustomPainter {
   final Color baseColor;
@@ -470,7 +479,6 @@ class _SpinningRingPainter extends CustomPainter {
     final radius = (size.width - strokeWidth) / 2;
     final rect = Rect.fromCircle(center: center, radius: radius);
 
-    // Base dark ring
     final basePaint = Paint()
       ..color = baseColor
       ..style = PaintingStyle.stroke
@@ -478,7 +486,6 @@ class _SpinningRingPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round;
     canvas.drawCircle(center, radius, basePaint);
 
-    // Orange arc (top segment ~90 degrees)
     final arcPaint = Paint()
       ..color = arcColor
       ..style = PaintingStyle.stroke
@@ -510,7 +517,6 @@ class _SubtleRingPainter extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth;
 
-    // Dashed-like arc segments for subtlety
     final rect = Rect.fromCircle(center: center, radius: radius);
     canvas.drawArc(rect, 0, math.pi * 0.6, false, paint);
     canvas.drawArc(rect, math.pi * 0.8, math.pi * 0.6, false, paint);
