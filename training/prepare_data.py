@@ -54,7 +54,7 @@ def process_dataset(dataset_dir: Path, dataset_name: str, output_dir: Path) -> d
     return stats
 
 
-def filter_small_images(image_paths: list[Path], min_dim: int = 400) -> list[Path]:
+def filter_small_images(image_paths: list[Path], min_dim: int = 640) -> list[Path]:
     kept = []
     for p in image_paths:
         try:
@@ -273,7 +273,7 @@ def run_pipeline(datasets_dir: Path, output_dir: Path, max_negatives: int = 500)
 
     print("\nFiltering small images (<400px)...")
     all_images = sorted((merged_dir / "all" / "images").glob("*"))
-    kept = filter_small_images(all_images, min_dim=400)
+    kept = filter_small_images(all_images, min_dim=640)
     removed = len(all_images) - len(kept)
     print(f"  Removed {removed} small images, kept {len(kept)}")
 
