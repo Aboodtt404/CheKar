@@ -23,6 +23,13 @@ class Settings(BaseModel):
     vlm_max_tokens: int = 4096
     vlm_temperature: float = 0.1
 
+    # Per-pass token limits
+    vlm_max_tokens_validation: int = 256
+    vlm_max_tokens_classification: int = 2048
+    vlm_max_tokens_assessment: int = 2048
+    vlm_max_tokens_interior: int = 1536
+    vlm_max_tokens_report: int = 2048
+
     # Image preprocessing
     max_image_dimension: int = 2048
     min_image_dimension: int = 640
