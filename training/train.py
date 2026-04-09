@@ -21,7 +21,7 @@ def train(data_yaml: str, weights: str, experiment_name: str, epochs: int = 300,
         warmup_epochs=10,     # stabilize early training with larger dataset
         dropout=0.1,
         mixup=0.1,
-        multi_scale=True,     # varying resolution per batch — robust to photo distance
+        multi_scale=False,    # disabled — ZeroDivisionError with batch=4
         cls=0.3,              # lower class loss — damage types look similar
         dfl=1.7,              # higher DFL — better irregular damage boundaries
         close_mosaic=10,
