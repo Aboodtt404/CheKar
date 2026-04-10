@@ -8,7 +8,7 @@ from carcheck.config import settings
 from carcheck.models import Detection, CLASS_NAMES_AR
 
 
-# CarDD 6-class standard
+# CarDD 6-class standard (fallback if model doesn't define names)
 CARDD_CLASSES = {
     0: "dent",
     1: "scratch",
@@ -16,6 +16,13 @@ CARDD_CLASSES = {
     3: "glass_shatter",
     4: "lamp_broken",
     5: "tire_flat",
+}
+
+# Normalize class names from different models to our standard
+_CLASS_NAME_NORMALIZE = {
+    "glass shatter": "glass_shatter",
+    "lamp broken": "lamp_broken",
+    "tire flat": "tire_flat",
 }
 
 
@@ -82,7 +89,11 @@ class YOLODetector:
         from ultralytics import YOLO
 
         self.model = YOLO(str(weights_path))
-        self.class_names = CARDD_CLASSES
+        # Read class names from model, normalize spaces to underscores
+        raw_names = self.model.names or CARDD_CLASSES
+        self.class_names = {
+            k: _CLASS_NAME_NORMALIZE.get(v, v) for k, v in raw_names.items()
+        }
 
     def detect(self, image_paths: list[Path]) -> list[list[Detection]]:
         """Run inference on a list of images. Returns detections per image."""
