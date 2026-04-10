@@ -18,10 +18,10 @@ def main():
     insp_id = insp["id"]
     print(f"Created: {insp_id}")
 
-    # Upload test images — use existing inspection photos or hires test set
-    photos = sorted(glob.glob("data/inspections/*/photos/*.jpg"))[:4]
+    # Upload test images — use a known real car inspection
+    photos = sorted(glob.glob("data/inspections/997c682f-*/photos/*.jpg"))[:4]
     if not photos:
-        photos = sorted(glob.glob("test_results/hires/*.jpg"))[:4]
+        photos = sorted(glob.glob("data/inspections/*/photos/*.jpg"))[:4]
     print(f"Uploading {len(photos)} photos...")
     for p in photos:
         with open(p, "rb") as f:
