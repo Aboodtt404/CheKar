@@ -25,7 +25,7 @@ def main():
     print(f"Uploading {len(photos)} photos...")
     for p in photos:
         with open(p, "rb") as f:
-            r = requests.post(f"{BASE}/inspections/{insp_id}/photos", headers=HEADERS, files={"photo": f})
+            r = requests.post(f"{BASE}/inspections/{insp_id}/photos", headers=HEADERS, files={"file": f})
         print(f"  {p}: {r.status_code}")
 
     # Trigger
