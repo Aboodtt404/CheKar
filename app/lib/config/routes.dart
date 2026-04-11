@@ -17,6 +17,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/home', builder: (context, state) => const HomeScreen()),
       GoRoute(path: '/capture/:mode', builder: (context, state) => CaptureScreen(mode: state.pathParameters['mode'] ?? 'quick')),
       GoRoute(path: '/obd/:id', builder: (context, state) => ObdScanScreen(inspectionId: state.pathParameters['id']!)),
+      GoRoute(path: '/obd-standalone', builder: (context, state) => const ObdScanScreen(inspectionId: '')),
       GoRoute(path: '/processing/:id', builder: (context, state) => ProcessingScreen(inspectionId: state.pathParameters['id']!)),
       GoRoute(path: '/report/:id', builder: (context, state) => ReportScreen(inspectionId: state.pathParameters['id']!)),
     ],

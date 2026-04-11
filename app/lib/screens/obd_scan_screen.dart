@@ -72,13 +72,23 @@ class _ObdScanScreenState extends ConsumerState<ObdScanScreen> {
     }
   }
 
+  bool get _isStandalone => widget.inspectionId.isEmpty;
+
   void _skipObd() {
-    context.go('/processing/${widget.inspectionId}');
+    if (_isStandalone) {
+      context.go('/home');
+    } else {
+      context.go('/processing/${widget.inspectionId}');
+    }
   }
 
   void _continueWithResults() {
     // TODO: attach OBD results to inspection before navigating
-    context.go('/processing/${widget.inspectionId}');
+    if (_isStandalone) {
+      context.go('/home');
+    } else {
+      context.go('/processing/${widget.inspectionId}');
+    }
   }
 
   @override

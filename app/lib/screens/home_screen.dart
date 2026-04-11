@@ -141,11 +141,63 @@ class _Header extends StatelessWidget {
                   const SizedBox(height: 24),
                   // Hero CTA button
                   _NewInspectionButton(onTap: onNewInspection),
+                  const SizedBox(height: 12),
+                  // OBD scan button
+                  _ObdScanButton(),
                 ],
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ── OBD Scan Button ─────────────────────────────────────────────────────────
+
+class _ObdScanButton extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => context.push('/obd-standalone'),
+      child: Container(
+        decoration: BoxDecoration(
+          color: CheKarColors.darkElevated,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: CheKarColors.borderSubtle),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: CheKarColors.orange.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Iconsax.cpu, color: CheKarColors.orange, size: 20),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'فحص OBD',
+                    style: GoogleFonts.cairo(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.white),
+                  ),
+                  Text(
+                    'افحص كمبيوتر العربية بجهاز OBD',
+                    style: GoogleFonts.cairo(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.white38),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Iconsax.arrow_left_2, color: Colors.white24, size: 18),
+          ],
+        ),
       ),
     );
   }
