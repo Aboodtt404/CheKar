@@ -220,11 +220,16 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
       final isLast = _currentStep >= steps.length - 1;
 
       if (isLast) {
-        // Trigger inspection and navigate
+        // Trigger inspection
         await ref.read(inspectionProvider.notifier).triggerInspection();
         final id = ref.read(inspectionProvider).current?.id;
         if (mounted && id != null) {
-          context.go('/processing/$id');
+          // Full mode → offer OBD scan, Quick mode → straight to processing
+          if (widget.mode == 'full') {
+            context.go('/obd/$id');
+          } else {
+            context.go('/processing/$id');
+          }
         }
       } else {
         if (mounted) {
