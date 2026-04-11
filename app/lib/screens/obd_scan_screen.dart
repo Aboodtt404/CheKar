@@ -1,11 +1,14 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
+import 'package:share_plus/share_plus.dart';
 import '../config/theme.dart';
 import '../models/obd_result.dart';
+import '../providers/auth_provider.dart';
 import '../services/obd/obd_scanner.dart';
 
 class ObdScanScreen extends ConsumerStatefulWidget {
@@ -82,13 +85,49 @@ class _ObdScanScreenState extends ConsumerState<ObdScanScreen> {
     }
   }
 
-  void _continueWithResults() {
-    // TODO: attach OBD results to inspection before navigating
+  Future<void> _continueWithResults() async {
+    if (_result == null) return;
+
+    // Save OBD results locally
+    final storage = ref.read(storageServiceProvider);
+    final obdJson = jsonEncode({
+      ...(_result!.toJson()),
+      'scanned_at': DateTime.now().toIso8601String(),
+      'inspection_id': _isStandalone ? null : widget.inspectionId,
+    });
+    await storage.addObdResult(obdJson);
+
     if (_isStandalone) {
       context.go('/home');
     } else {
       context.go('/processing/${widget.inspectionId}');
     }
+  }
+
+  void _shareResults() {
+    if (_result == null) return;
+    final r = _result!;
+    final lines = <String>[
+      'تقرير فحص OBD — CheKar',
+      '─────────────────',
+    ];
+    if (r.vin != null) lines.add('رقم الشاسيه: ${r.vin}');
+    lines.add('لمبة المحرك: ${r.milOn ? "شغالة ⚠️" : "مطفية ✅"}');
+    if (r.dtcCount > 0) lines.add('أكواد أعطال: ${r.dtcCount}');
+    if (r.storedDtcs.isNotEmpty) lines.add('الأكواد: ${r.storedDtcs.join(", ")}');
+    if (r.pendingDtcs.isNotEmpty) lines.add('أكواد معلقة: ${r.pendingDtcs.join(", ")}');
+    if (r.coolantTempC != null) lines.add('حرارة المحرك: ${r.coolantTempC!.toInt()}°C');
+    if (r.batteryVoltage != null) lines.add('البطارية: ${r.batteryVoltage!.toStringAsFixed(1)}V');
+    if (r.odometerKm != null) lines.add('العداد (كمبيوتر): ${r.odometerKm} كم');
+    if (r.distanceWithMilKm != null) lines.add('مسافة بلمبة المحرك: ${r.distanceWithMilKm} كم');
+    if (r.timeSinceDtcClearedMin != null) lines.add('وقت مسح الأكواد: ${_formatMinutes(r.timeSinceDtcClearedMin!)}');
+    if (r.warmupsSinceDtcCleared != null) lines.add('تشغيلات بعد المسح: ${r.warmupsSinceDtcCleared}');
+    if (r.warnings.isNotEmpty) {
+      lines.add('');
+      lines.add('تحذيرات:');
+      for (final w in r.warnings) lines.add('⚠️ $w');
+    }
+    Share.share(lines.join('\n'));
   }
 
   @override
@@ -321,6 +360,23 @@ class _ObdScanScreenState extends ConsumerState<ObdScanScreen> {
           ]),
 
           const SizedBox(height: 32),
+          // Share button
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _shareResults,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF25D366),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                elevation: 0,
+              ),
+              icon: const Icon(Iconsax.share, size: 18),
+              label: Text('شارك النتائج', style: GoogleFonts.cairo(fontSize: 15, fontWeight: FontWeight.w700)),
+            ),
+          ),
+          const SizedBox(height: 12),
           // Continue button
           GestureDetector(
             onTap: _continueWithResults,
@@ -331,7 +387,10 @@ class _ObdScanScreenState extends ConsumerState<ObdScanScreen> {
                 borderRadius: BorderRadius.circular(16),
               ),
               alignment: Alignment.center,
-              child: Text('استمر في الفحص', style: GoogleFonts.cairo(fontSize: 17, fontWeight: FontWeight.w800, color: Colors.white)),
+              child: Text(
+                _isStandalone ? 'رجوع' : 'استمر في الفحص',
+                style: GoogleFonts.cairo(fontSize: 17, fontWeight: FontWeight.w800, color: Colors.white),
+              ),
             ),
           ),
           const SizedBox(height: 32),
