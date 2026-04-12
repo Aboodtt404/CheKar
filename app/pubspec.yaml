@@ -29,6 +29,7 @@ dependencies:
   tflite_flutter: ^0.11.0
   image: ^4.3.0
   bluetooth_classic: ^0.0.4
+  permission_handler: ^11.3.0
 
 dev_dependencies:
   flutter_test:

@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:bluetooth_classic/models/device.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
@@ -46,16 +47,39 @@ class _ObdScanScreenState extends ConsumerState<ObdScanScreen> {
       _error = null;
     });
 
-    // Init permissions + get paired devices
+    // Request all Bluetooth permissions explicitly
+    final permissions = await [
+      Permission.bluetoothConnect,
+      Permission.bluetoothScan,
+      Permission.locationWhenInUse,
+    ].request();
+
+    final allGranted = permissions.values.every(
+      (s) => s.isGranted || s.isLimited,
+    );
+
+    if (!allGranted) {
+      if (mounted) {
+        setState(() {
+          _state = _ScanState.error;
+          _error = 'لازم تدي صلاحية البلوتوث والموقع.\nروح إعدادات التطبيق وفعلهم.';
+        });
+      }
+      return;
+    }
+
+    // Get paired devices
     try {
       await ObdScanner.initPermissions();
       final devices = await ObdScanner.getPairedDevices();
-      setState(() => _pairedDevices = devices);
+      if (mounted) setState(() => _pairedDevices = devices);
     } catch (e) {
-      setState(() {
-        _state = _ScanState.error;
-        _error = 'لازم تفتح البلوتوث وتدي صلاحية الوصول.';
-      });
+      if (mounted) {
+        setState(() {
+          _state = _ScanState.error;
+          _error = 'مش قادر يجيب الأجهزة المقترنة.\nتأكد إن البلوتوث مفتوح.';
+        });
+      }
     }
   }
 
