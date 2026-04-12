@@ -23,7 +23,7 @@ class ObdScanScreen extends ConsumerStatefulWidget {
 }
 
 class _ObdScanScreenState extends ConsumerState<ObdScanScreen> {
-  final ObdScanner _scanner = ObdScanner();
+  ObdScanner _scanner = ObdScanner();
   _ScanState _state = _ScanState.pickConnection;
   ObdTransport? _selectedTransport;
   Device? _selectedDevice;
@@ -91,6 +91,10 @@ class _ObdScanScreenState extends ConsumerState<ObdScanScreen> {
   }
 
   Future<void> _startScan() async {
+    // Fresh scanner each time to avoid stale stream errors
+    _scanner.disconnect();
+    _scanner = ObdScanner();
+
     setState(() {
       _state = _ScanState.connecting;
       _statusText = 'جاري الاتصال بجهاز OBD...';

@@ -12,7 +12,6 @@ import 'package:iconsax_flutter/iconsax_flutter.dart';
 import '../config/theme.dart';
 import '../models/inspection.dart';
 import '../providers/inspection_provider.dart';
-import '../services/car_validator.dart';
 import '../widgets/camera_overlay.dart';
 import '../widgets/capture_dots.dart';
 
@@ -117,7 +116,6 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
   bool _isCapturing = false;
   CameraController? _cameraController;
   bool _cameraReady = false;
-  final CarValidator _carValidator = CarValidator();
 
   // Shutter glow animation
   late AnimationController _glowController;
@@ -169,7 +167,6 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
   void dispose() {
     _glowController.dispose();
     _cameraController?.dispose();
-    _carValidator.dispose();
     super.dispose();
   }
 
@@ -188,29 +185,6 @@ class _CaptureScreenState extends ConsumerState<CaptureScreen>
       } else {
         // Fallback: generate placeholder (emulator)
         photo = await _generatePlaceholderPhoto(_currentStep);
-      }
-
-      // Validate first photo is a car (on-device, ~100ms)
-      if (_currentStep == 0) {
-        try {
-          final isCar = await _carValidator.isCar(photo);
-          if (!isCar && mounted) {
-            setState(() => _isCapturing = false);
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  'الصورة دي مش صورة عربية. صور العربية من الأمام وحاول تاني.',
-                  style: GoogleFonts.cairo(fontWeight: FontWeight.w600),
-                ),
-                backgroundColor: CheKarColors.scoreBad,
-                duration: const Duration(seconds: 3),
-              ),
-            );
-            return;
-          }
-        } catch (_) {
-          // If validator fails, skip validation and proceed
-        }
       }
 
       // Upload
