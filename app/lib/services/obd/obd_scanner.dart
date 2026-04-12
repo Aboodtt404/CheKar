@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'package:bluetooth_classic/bluetooth_classic.dart';
 import 'package:bluetooth_classic/models/device.dart';
 
+import '../../models/obd_live_data.dart';
 import '../../models/obd_result.dart';
 
 /// Transport mode for ELM327 connection.
@@ -298,6 +299,129 @@ class ObdScanner {
       final rawKm = (bytes[0] << 24) + (bytes[1] << 16) + (bytes[2] << 8) + bytes[3];
       return rawKm ~/ 10;
     } catch (_) { return null; }
+  }
+
+  // ── Live Data (single poll cycle) ───────────────────────────────────
+
+  Future<ObdLiveData> readLiveData() async {
+    // RPM: PID 0C — ((A*256)+B)/4
+    int? rpm;
+    try {
+      final raw = await _send('010C');
+      if (!_isError(raw)) {
+        final bytes = _extractPidData(raw, '410C');
+        if (bytes.length >= 2) rpm = ((bytes[0] * 256) + bytes[1]) ~/ 4;
+      }
+    } catch (_) {}
+
+    // Speed: PID 0D — A km/h
+    int? speed;
+    try {
+      speed = await _readSingleByteValue('010D');
+    } catch (_) {}
+
+    // Coolant temp: PID 05 — A-40
+    double? coolant;
+    try {
+      coolant = await _readCoolantTemp();
+    } catch (_) {}
+
+    // Intake air temp: PID 0F — A-40
+    double? intakeTemp;
+    try {
+      final val = await _readSingleByteValue('010F');
+      if (val != null) intakeTemp = (val - 40).toDouble();
+    } catch (_) {}
+
+    // Engine load: PID 04 — A*100/255
+    int? engineLoad;
+    try {
+      final val = await _readSingleByteValue('0104');
+      if (val != null) engineLoad = (val * 100) ~/ 255;
+    } catch (_) {}
+
+    // Throttle position: PID 11 — A*100/255
+    int? throttle;
+    try {
+      final val = await _readSingleByteValue('0111');
+      if (val != null) throttle = (val * 100) ~/ 255;
+    } catch (_) {}
+
+    // Fuel level: PID 2F — A*100/255
+    int? fuelLevel;
+    try {
+      final val = await _readSingleByteValue('012F');
+      if (val != null) fuelLevel = (val * 100) ~/ 255;
+    } catch (_) {}
+
+    // Intake manifold pressure: PID 0B — A kPa
+    int? manifoldPressure;
+    try {
+      manifoldPressure = await _readSingleByteValue('010B');
+    } catch (_) {}
+
+    // Fuel pressure: PID 0A — A*3 kPa
+    int? fuelPressure;
+    try {
+      final val = await _readSingleByteValue('010A');
+      if (val != null) fuelPressure = val * 3;
+    } catch (_) {}
+
+    // Battery voltage: AT RV
+    double? battery;
+    try {
+      battery = await _readBatteryVoltage();
+    } catch (_) {}
+
+    // Run time since engine start: PID 1F — (A*256+B) seconds
+    int? runTime;
+    try {
+      runTime = await _readTwoByteValue('011F');
+    } catch (_) {}
+
+    // MAF air flow rate: PID 10 — ((A*256)+B)/100 g/s
+    double? maf;
+    try {
+      final raw = await _send('0110');
+      if (!_isError(raw)) {
+        final bytes = _extractPidData(raw, '4110');
+        if (bytes.length >= 2) maf = ((bytes[0] * 256) + bytes[1]) / 100.0;
+      }
+    } catch (_) {}
+
+    // Timing advance: PID 0E — (A/2)-64 degrees
+    int? timing;
+    try {
+      final val = await _readSingleByteValue('010E');
+      if (val != null) timing = (val ~/ 2) - 64;
+    } catch (_) {}
+
+    // Catalyst temp bank 1 sensor 1: PID 3C — ((A*256)+B)/10 - 40
+    int? catalystTemp;
+    try {
+      final raw = await _send('013C');
+      if (!_isError(raw)) {
+        final bytes = _extractPidData(raw, '413C');
+        if (bytes.length >= 2) catalystTemp = (((bytes[0] * 256) + bytes[1]) ~/ 10) - 40;
+      }
+    } catch (_) {}
+
+    return ObdLiveData(
+      rpm: rpm,
+      speedKmh: speed,
+      coolantTempC: coolant,
+      intakeAirTempC: intakeTemp,
+      engineLoadPct: engineLoad,
+      throttlePct: throttle,
+      fuelLevelPct: fuelLevel,
+      intakeManifoldPressureKpa: manifoldPressure,
+      fuelPressureKpa: fuelPressure,
+      batteryVoltage: battery,
+      runTimeSec: runTime,
+      mafFlowGps: maf,
+      timingAdvanceDeg: timing,
+      catalystTempC: catalystTemp,
+    );
   }
 
   // ── Helpers ─────────────────────────────────────────────────────────
