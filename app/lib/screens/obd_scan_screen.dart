@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:bluetooth_classic/models/device.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -25,8 +25,8 @@ class _ObdScanScreenState extends ConsumerState<ObdScanScreen> {
   final ObdScanner _scanner = ObdScanner();
   _ScanState _state = _ScanState.pickConnection;
   ObdTransport? _selectedTransport;
-  BluetoothDevice? _selectedDevice;
-  List<BluetoothDevice> _pairedDevices = [];
+  Device? _selectedDevice;
+  List<Device> _pairedDevices = [];
   String _statusText = '';
   ObdResult? _result;
   String? _error;
@@ -46,22 +46,17 @@ class _ObdScanScreenState extends ConsumerState<ObdScanScreen> {
       _error = null;
     });
 
-    // Check if Bluetooth is enabled
-    final enabled = await ObdScanner.isBluetoothEnabled();
-    if (!enabled) {
-      final turned = await ObdScanner.requestEnableBluetooth();
-      if (!turned) {
-        setState(() {
-          _state = _ScanState.error;
-          _error = 'لازم تفتح البلوتوث الأول.';
-        });
-        return;
-      }
+    // Init permissions + get paired devices
+    try {
+      await ObdScanner.initPermissions();
+      final devices = await ObdScanner.getPairedDevices();
+      setState(() => _pairedDevices = devices);
+    } catch (e) {
+      setState(() {
+        _state = _ScanState.error;
+        _error = 'لازم تفتح البلوتوث وتدي صلاحية الوصول.';
+      });
     }
-
-    // Get paired devices
-    final devices = await ObdScanner.getPairedDevices();
-    setState(() => _pairedDevices = devices);
   }
 
   void _pickWifi() {

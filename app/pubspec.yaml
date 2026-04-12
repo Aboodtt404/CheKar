@@ -28,7 +28,7 @@ dependencies:
   iconsax_flutter: ^1.0.0
   tflite_flutter: ^0.11.0
   image: ^4.3.0
-  flutter_bluetooth_serial: ^0.4.0
+  bluetooth_classic: ^0.0.4
 
 dev_dependencies:
   flutter_test:
