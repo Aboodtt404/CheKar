@@ -301,7 +301,7 @@ class ObdScanner {
     } catch (_) { return null; }
   }
 
-  // ── Live Data (single poll cycle) ───────────────────────────────────
+  // ── Live Data (single poll cycle — buyer-relevant PIDs) ─────────────
 
   Future<ObdLiveData> readLiveData() async {
     // RPM: PID 0C — ((A*256)+B)/4
@@ -316,22 +316,11 @@ class ObdScanner {
 
     // Speed: PID 0D — A km/h
     int? speed;
-    try {
-      speed = await _readSingleByteValue('010D');
-    } catch (_) {}
+    try { speed = await _readSingleByteValue('010D'); } catch (_) {}
 
     // Coolant temp: PID 05 — A-40
     double? coolant;
-    try {
-      coolant = await _readCoolantTemp();
-    } catch (_) {}
-
-    // Intake air temp: PID 0F — A-40
-    double? intakeTemp;
-    try {
-      final val = await _readSingleByteValue('010F');
-      if (val != null) intakeTemp = (val - 40).toDouble();
-    } catch (_) {}
+    try { coolant = await _readCoolantTemp(); } catch (_) {}
 
     // Engine load: PID 04 — A*100/255
     int? engineLoad;
@@ -347,6 +336,48 @@ class ObdScanner {
       if (val != null) throttle = (val * 100) ~/ 255;
     } catch (_) {}
 
+    // Intake air temp: PID 0F — A-40
+    double? intakeTemp;
+    try {
+      final val = await _readSingleByteValue('010F');
+      if (val != null) intakeTemp = (val - 40).toDouble();
+    } catch (_) {}
+
+    // Short-term fuel trim bank 1: PID 06 — (A-128)*100/128 percent
+    double? stft;
+    try {
+      final val = await _readSingleByteValue('0106');
+      if (val != null) stft = ((val - 128) * 100) / 128.0;
+    } catch (_) {}
+
+    // Long-term fuel trim bank 1: PID 07 — (A-128)*100/128 percent
+    double? ltft;
+    try {
+      final val = await _readSingleByteValue('0107');
+      if (val != null) ltft = ((val - 128) * 100) / 128.0;
+    } catch (_) {}
+
+    // O2 sensor voltage bank 1 sensor 1: PID 14 — A/200 volts
+    double? o2Voltage;
+    try {
+      final val = await _readSingleByteValue('0114');
+      if (val != null) o2Voltage = val / 200.0;
+    } catch (_) {}
+
+    // Battery voltage: AT RV
+    double? battery;
+    try { battery = await _readBatteryVoltage(); } catch (_) {}
+
+    // Control module voltage: PID 42 — (A*256+B)/1000 volts
+    double? moduleVoltage;
+    try {
+      final raw = await _send('0142');
+      if (!_isError(raw)) {
+        final bytes = _extractPidData(raw, '4142');
+        if (bytes.length >= 2) moduleVoltage = ((bytes[0] * 256) + bytes[1]) / 1000.0;
+      }
+    } catch (_) {}
+
     // Fuel level: PID 2F — A*100/255
     int? fuelLevel;
     try {
@@ -354,73 +385,29 @@ class ObdScanner {
       if (val != null) fuelLevel = (val * 100) ~/ 255;
     } catch (_) {}
 
-    // Intake manifold pressure: PID 0B — A kPa
-    int? manifoldPressure;
-    try {
-      manifoldPressure = await _readSingleByteValue('010B');
-    } catch (_) {}
-
-    // Fuel pressure: PID 0A — A*3 kPa
-    int? fuelPressure;
-    try {
-      final val = await _readSingleByteValue('010A');
-      if (val != null) fuelPressure = val * 3;
-    } catch (_) {}
-
-    // Battery voltage: AT RV
-    double? battery;
-    try {
-      battery = await _readBatteryVoltage();
-    } catch (_) {}
-
-    // Run time since engine start: PID 1F — (A*256+B) seconds
+    // Run time: PID 1F — (A*256+B) seconds
     int? runTime;
-    try {
-      runTime = await _readTwoByteValue('011F');
-    } catch (_) {}
+    try { runTime = await _readTwoByteValue('011F'); } catch (_) {}
 
-    // MAF air flow rate: PID 10 — ((A*256)+B)/100 g/s
-    double? maf;
-    try {
-      final raw = await _send('0110');
-      if (!_isError(raw)) {
-        final bytes = _extractPidData(raw, '4110');
-        if (bytes.length >= 2) maf = ((bytes[0] * 256) + bytes[1]) / 100.0;
-      }
-    } catch (_) {}
-
-    // Timing advance: PID 0E — (A/2)-64 degrees
-    int? timing;
-    try {
-      final val = await _readSingleByteValue('010E');
-      if (val != null) timing = (val ~/ 2) - 64;
-    } catch (_) {}
-
-    // Catalyst temp bank 1 sensor 1: PID 3C — ((A*256)+B)/10 - 40
-    int? catalystTemp;
-    try {
-      final raw = await _send('013C');
-      if (!_isError(raw)) {
-        final bytes = _extractPidData(raw, '413C');
-        if (bytes.length >= 2) catalystTemp = (((bytes[0] * 256) + bytes[1]) ~/ 10) - 40;
-      }
-    } catch (_) {}
+    // Distance with MIL on: PID 21 — (A*256+B) km
+    int? distMil;
+    try { distMil = await _readTwoByteValue('0121'); } catch (_) {}
 
     return ObdLiveData(
       rpm: rpm,
       speedKmh: speed,
       coolantTempC: coolant,
-      intakeAirTempC: intakeTemp,
       engineLoadPct: engineLoad,
       throttlePct: throttle,
-      fuelLevelPct: fuelLevel,
-      intakeManifoldPressureKpa: manifoldPressure,
-      fuelPressureKpa: fuelPressure,
+      intakeAirTempC: intakeTemp,
+      shortTermFuelTrimB1: stft,
+      longTermFuelTrimB1: ltft,
+      o2VoltageB1S1: o2Voltage,
       batteryVoltage: battery,
+      controlModuleVoltage: moduleVoltage,
+      fuelLevelPct: fuelLevel,
       runTimeSec: runTime,
-      mafFlowGps: maf,
-      timingAdvanceDeg: timing,
-      catalystTempC: catalystTemp,
+      distanceWithMilKm: distMil,
     );
   }
 

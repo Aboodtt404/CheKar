@@ -374,7 +374,7 @@ class _ObdLiveScreenState extends ConsumerState<ObdLiveScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Column(
               children: [
-                // Big gauges row: RPM + Speed
+                // Big gauges: RPM + Speed
                 Row(
                   children: [
                     Expanded(child: _bigGauge('RPM', '${d?.rpm ?? '--'}', Iconsax.flash_1, d?.rpm != null && d!.rpm! > 5000 ? CheKarColors.scoreBad : CheKarColors.orange)),
@@ -384,37 +384,67 @@ class _ObdLiveScreenState extends ConsumerState<ObdLiveScreen> {
                 ),
                 const SizedBox(height: 12),
 
-                // Engine metrics
-                _sectionLabel('المحرك'),
+                // Engine Health
+                _sectionLabel('صحة المحرك'),
                 _metricsGrid([
                   _metric('حرارة المحرك', d?.coolantTempC != null ? '${d!.coolantTempC!.toInt()}°C' : '--', Iconsax.flash_1, _tempColor(d?.coolantTempC)),
-                  _metric('حمل المحرك', d?.engineLoadPct != null ? '${d!.engineLoadPct}%' : '--', Iconsax.chart, null),
+                  _metric('حمل المحرك', d?.engineLoadPct != null ? '${d!.engineLoadPct}%' : '--', Iconsax.chart, _loadColor(d?.engineLoadPct)),
                   _metric('دعسة البنزين', d?.throttlePct != null ? '${d!.throttlePct}%' : '--', Iconsax.arrow_up_3, null),
                   _metric('حرارة الهوا', d?.intakeAirTempC != null ? '${d!.intakeAirTempC!.toInt()}°C' : '--', Iconsax.wind, null),
                 ]),
                 const SizedBox(height: 12),
 
-                // Fuel + electrical
-                _sectionLabel('الوقود والكهرباء'),
+                // Fuel System (fraud indicators)
+                _sectionLabel('نظام الوقود'),
                 _metricsGrid([
+                  _metricWithHint(
+                    'STFT', d?.shortTermFuelTrimB1 != null ? '${d!.shortTermFuelTrimB1!.toStringAsFixed(1)}%' : '--',
+                    Iconsax.chart, _fuelTrimColor(d?.shortTermFuelTrimB1),
+                    _fuelTrimHint(d?.shortTermFuelTrimB1, 'قصير'),
+                  ),
+                  _metricWithHint(
+                    'LTFT', d?.longTermFuelTrimB1 != null ? '${d!.longTermFuelTrimB1!.toStringAsFixed(1)}%' : '--',
+                    Iconsax.chart, _fuelTrimColor(d?.longTermFuelTrimB1),
+                    _fuelTrimHint(d?.longTermFuelTrimB1, 'طويل'),
+                  ),
+                  _metricWithHint(
+                    'O2 سنسور', d?.o2VoltageB1S1 != null ? '${d!.o2VoltageB1S1!.toStringAsFixed(2)}V' : '--',
+                    Iconsax.flash_1, null,
+                    d?.o2VoltageB1S1 != null ? (d!.o2VoltageB1S1! < 0.1 || d!.o2VoltageB1S1! > 0.9 ? 'ثابت — مشكلة' : 'طبيعي') : null,
+                  ),
                   _metric('مستوى البنزين', d?.fuelLevelPct != null ? '${d!.fuelLevelPct}%' : '--', Iconsax.gas_station, d?.fuelLevelPct != null && d!.fuelLevelPct! < 15 ? CheKarColors.scoreBad : null),
-                  _metric('البطارية', d?.batteryVoltage != null ? '${d!.batteryVoltage!.toStringAsFixed(1)}V' : '--', Iconsax.battery_charging, d?.batteryVoltage != null && d!.batteryVoltage! < 11.5 ? CheKarColors.scoreBad : null),
-                  _metric('ضغط الوقود', d?.fuelPressureKpa != null ? '${d!.fuelPressureKpa} kPa' : '--', Iconsax.filter, null),
-                  _metric('ضغط المانيفولد', d?.intakeManifoldPressureKpa != null ? '${d!.intakeManifoldPressureKpa} kPa' : '--', Iconsax.filter, null),
                 ]),
                 const SizedBox(height: 12),
 
-                // Advanced
-                _sectionLabel('متقدم'),
+                // Electrical
+                _sectionLabel('الكهرباء'),
                 _metricsGrid([
-                  _metric('MAF', d?.mafFlowGps != null ? '${d!.mafFlowGps!.toStringAsFixed(1)} g/s' : '--', Iconsax.wind, null),
-                  _metric('توقيت الإشعال', d?.timingAdvanceDeg != null ? '${d!.timingAdvanceDeg}°' : '--', Iconsax.timer_1, null),
-                  _metric('حرارة الكتالايزر', d?.catalystTempC != null ? '${d!.catalystTempC}°C' : '--', Iconsax.flash_1, null),
-                  _metric('وقت التشغيل', d?.runTimeSec != null ? _formatSeconds(d!.runTimeSec!) : '--', Iconsax.clock, null),
+                  _metricWithHint(
+                    'البطارية', d?.batteryVoltage != null ? '${d!.batteryVoltage!.toStringAsFixed(1)}V' : '--',
+                    Iconsax.battery_charging, _voltageColor(d?.batteryVoltage),
+                    _voltageHint(d?.batteryVoltage),
+                  ),
+                  _metricWithHint(
+                    'الدينامو', d?.controlModuleVoltage != null ? '${d!.controlModuleVoltage!.toStringAsFixed(1)}V' : '--',
+                    Iconsax.flash_1, _voltageColor(d?.controlModuleVoltage),
+                    _voltageHint(d?.controlModuleVoltage),
+                  ),
                 ]),
                 const SizedBox(height: 12),
 
-                // Diagnostics (from one-shot scan)
+                // Other
+                _sectionLabel('بيانات تانية'),
+                _metricsGrid([
+                  _metric('وقت التشغيل', d?.runTimeSec != null ? _formatSeconds(d!.runTimeSec!) : '--', Iconsax.clock, null),
+                  _metricWithHint(
+                    'مسافة بلمبة المحرك', d?.distanceWithMilKm != null ? '${d!.distanceWithMilKm} كم' : '--',
+                    Iconsax.routing, d?.distanceWithMilKm != null && d!.distanceWithMilKm! > 0 ? CheKarColors.scoreBad : null,
+                    d?.distanceWithMilKm != null && d!.distanceWithMilKm! > 500 ? 'إهمال — ماشي بلمبة المحرك' : null,
+                  ),
+                ]),
+                const SizedBox(height: 12),
+
+                // Diagnostics (one-shot)
                 if (diag != null) ...[
                   _sectionLabel('التشخيص'),
                   Container(
@@ -427,8 +457,18 @@ class _ObdLiveScreenState extends ConsumerState<ObdLiveScreen> {
                         _diagRow('أكواد أعطال', '${diag.dtcCount}', diag.dtcCount > 0 ? CheKarColors.scoreBad : CheKarColors.scoreGood),
                         if (diag.storedDtcs.isNotEmpty) _diagRow('الأكواد', diag.storedDtcs.join(', '), CheKarColors.scoreBad),
                         if (diag.vin != null) _diagRow('VIN', diag.vin!, null),
-                        if (diag.odometerKm != null) _diagRow('العداد', '${diag.odometerKm} كم', null),
-                        if (diag.warmupsSinceDtcCleared != null) _diagRow('تشغيلات بعد المسح', '${diag.warmupsSinceDtcCleared}', diag.warmupsSinceDtcCleared! < 3 ? CheKarColors.scoreBad : null),
+                        if (diag.odometerKm != null) _diagRow('العداد (كمبيوتر)', '${diag.odometerKm} كم', null),
+                        if (diag.warmupsSinceDtcCleared != null) _diagRow(
+                          'تشغيلات بعد المسح', '${diag.warmupsSinceDtcCleared}',
+                          diag.warmupsSinceDtcCleared! < 3 ? CheKarColors.scoreBad : CheKarColors.scoreGood,
+                        ),
+                        if (diag.timeSinceDtcClearedMin != null) _diagRow(
+                          'وقت مسح الأكواد', _formatMinutes(diag.timeSinceDtcClearedMin!),
+                          diag.timeSinceDtcClearedMin! < 30 ? CheKarColors.scoreBad : null,
+                        ),
+                        if (diag.distanceWithMilKm != null && diag.distanceWithMilKm! > 0) _diagRow(
+                          'مسافة بلمبة المحرك', '${diag.distanceWithMilKm} كم', CheKarColors.scoreBad,
+                        ),
                       ],
                     ),
                   ),
@@ -441,10 +481,41 @@ class _ObdLiveScreenState extends ConsumerState<ObdLiveScreen> {
                       decoration: BoxDecoration(color: CheKarColors.scoreBad.withOpacity(0.1), borderRadius: BorderRadius.circular(14), border: Border.all(color: CheKarColors.scoreBad.withOpacity(0.2))),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        children: diag.warnings.map((w) => Padding(
-                          padding: const EdgeInsets.only(bottom: 4),
-                          child: Text('• $w', style: GoogleFonts.cairo(fontSize: 12, fontWeight: FontWeight.w600, color: CheKarColors.scoreBad, height: 1.5)),
-                        )).toList(),
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Iconsax.danger, size: 16, color: CheKarColors.scoreBad),
+                              const SizedBox(width: 8),
+                              Text('تحذيرات', style: GoogleFonts.cairo(fontSize: 14, fontWeight: FontWeight.w700, color: CheKarColors.scoreBad)),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          ...diag.warnings.map((w) => Padding(
+                            padding: const EdgeInsets.only(bottom: 4),
+                            child: Text('• $w', style: GoogleFonts.cairo(fontSize: 12, fontWeight: FontWeight.w600, color: CheKarColors.scoreBad, height: 1.5)),
+                          )),
+                        ],
+                      ),
+                    ),
+                  ],
+
+                  // LTFT fraud check
+                  if (d?.longTermFuelTrimB1 != null && d!.longTermFuelTrimB1!.abs() < 1.0 && diag.warmupsSinceDtcCleared != null && diag.warmupsSinceDtcCleared! < 10) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(color: CheKarColors.scoreMid.withOpacity(0.1), borderRadius: BorderRadius.circular(14), border: Border.all(color: CheKarColors.scoreMid.withOpacity(0.2))),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Iconsax.warning_2, size: 16, color: CheKarColors.scoreMid),
+                          const SizedBox(width: 8),
+                          Expanded(child: Text(
+                            'LTFT = 0% مع تشغيلات قليلة بعد المسح — ممكن الأكواد اتمسحت مؤخراً',
+                            style: GoogleFonts.cairo(fontSize: 12, fontWeight: FontWeight.w600, color: CheKarColors.scoreMid, height: 1.5),
+                          )),
+                        ],
                       ),
                     ),
                   ],
@@ -593,15 +664,28 @@ class _ObdLiveScreenState extends ConsumerState<ObdLiveScreen> {
   }
 
   Widget _metric(String label, String value, IconData icon, Color? valueColor) {
+    return _metricWithHint(label, value, icon, valueColor, null);
+  }
+
+  Widget _metricWithHint(String label, String value, IconData icon, Color? valueColor, String? hint) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(color: CheKarColors.darkCard, borderRadius: BorderRadius.circular(14), border: Border.all(color: CheKarColors.borderSubtle)),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 16, color: CheKarColors.orange.withOpacity(0.5)),
-          const SizedBox(width: 10),
-          Expanded(child: Text(label, style: GoogleFonts.cairo(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white54))),
-          Text(value, style: GoogleFonts.saira(fontSize: 14, fontWeight: FontWeight.w700, color: valueColor ?? Colors.white)),
+          Row(
+            children: [
+              Icon(icon, size: 16, color: CheKarColors.orange.withOpacity(0.5)),
+              const SizedBox(width: 10),
+              Expanded(child: Text(label, style: GoogleFonts.cairo(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white54))),
+              Text(value, style: GoogleFonts.saira(fontSize: 14, fontWeight: FontWeight.w700, color: valueColor ?? Colors.white)),
+            ],
+          ),
+          if (hint != null) ...[
+            const SizedBox(height: 4),
+            Text(hint, style: GoogleFonts.cairo(fontSize: 10, fontWeight: FontWeight.w600, color: valueColor ?? Colors.white38)),
+          ],
         ],
       ),
     );
@@ -623,13 +707,57 @@ class _ObdLiveScreenState extends ConsumerState<ObdLiveScreen> {
     if (temp == null) return null;
     if (temp > 105) return CheKarColors.scoreBad;
     if (temp > 95) return CheKarColors.scoreMid;
+    return CheKarColors.scoreGood;
+  }
+
+  Color? _loadColor(int? load) {
+    if (load == null) return null;
+    if (load > 50) return CheKarColors.scoreMid; // high at idle
     return null;
+  }
+
+  Color? _fuelTrimColor(double? trim) {
+    if (trim == null) return null;
+    if (trim.abs() > 25) return CheKarColors.scoreBad;
+    if (trim.abs() > 15) return CheKarColors.scoreMid;
+    return CheKarColors.scoreGood;
+  }
+
+  String? _fuelTrimHint(double? trim, String type) {
+    if (trim == null) return null;
+    if (trim.abs() > 25) return 'مشكلة في الوقود — خطير';
+    if (trim.abs() > 15) return trim > 0 ? 'المحرك بيسحب وقود زيادة' : 'المحرك بيضخ وقود زيادة';
+    if (trim.abs() < 1.0) return 'ممكن تكون اتريست مؤخراً';
+    return 'طبيعي';
+  }
+
+  Color? _voltageColor(double? v) {
+    if (v == null) return null;
+    if (v < 11.5) return CheKarColors.scoreBad;
+    if (v > 15.0) return CheKarColors.scoreBad;
+    if (v >= 13.5 && v <= 14.5) return CheKarColors.scoreGood;
+    return CheKarColors.scoreMid;
+  }
+
+  String? _voltageHint(double? v) {
+    if (v == null) return null;
+    if (v < 11.5) return 'ضعيفة — محتاجة تتغير';
+    if (v > 15.0) return 'عالية — الدينامو فيه مشكلة';
+    if (v >= 13.5 && v <= 14.5) return 'الشحن شغال كويس';
+    if (v < 13.0) return 'الدينامو مش بيشحن كويس';
+    return 'طبيعي';
   }
 
   String _formatSeconds(int sec) {
     if (sec < 60) return '${sec}ث';
     if (sec < 3600) return '${sec ~/ 60}د';
     return '${sec ~/ 3600}س ${(sec % 3600) ~/ 60}د';
+  }
+
+  String _formatMinutes(int minutes) {
+    if (minutes < 60) return '$minutes دقيقة';
+    if (minutes < 1440) return '${minutes ~/ 60} ساعة';
+    return '${minutes ~/ 1440} يوم';
   }
 }
 

@@ -1,51 +1,60 @@
 /// Real-time OBD-II data from a single poll cycle.
 class ObdLiveData {
+  // Core gauges
   final int? rpm;
   final int? speedKmh;
+
+  // Engine health
   final double? coolantTempC;
-  final double? intakeAirTempC;
   final int? engineLoadPct;
   final int? throttlePct;
-  final int? fuelLevelPct;
-  final int? intakeManifoldPressureKpa;
-  final int? fuelPressureKpa;
+  final double? intakeAirTempC;
+
+  // Fuel system health (fraud indicators)
+  final double? shortTermFuelTrimB1;
+  final double? longTermFuelTrimB1;
+  final double? o2VoltageB1S1;
+
+  // Electrical
   final double? batteryVoltage;
+  final double? controlModuleVoltage;
+
+  // Usage indicators
+  final int? fuelLevelPct;
   final int? runTimeSec;
-  final double? mafFlowGps;
-  final int? timingAdvanceDeg;
-  final int? catalystTempC;
+  final int? distanceWithMilKm;
 
   const ObdLiveData({
     this.rpm,
     this.speedKmh,
     this.coolantTempC,
-    this.intakeAirTempC,
     this.engineLoadPct,
     this.throttlePct,
-    this.fuelLevelPct,
-    this.intakeManifoldPressureKpa,
-    this.fuelPressureKpa,
+    this.intakeAirTempC,
+    this.shortTermFuelTrimB1,
+    this.longTermFuelTrimB1,
+    this.o2VoltageB1S1,
     this.batteryVoltage,
+    this.controlModuleVoltage,
+    this.fuelLevelPct,
     this.runTimeSec,
-    this.mafFlowGps,
-    this.timingAdvanceDeg,
-    this.catalystTempC,
+    this.distanceWithMilKm,
   });
 
   Map<String, dynamic> toJson() => {
     'rpm': rpm,
     'speed_kmh': speedKmh,
     'coolant_temp_c': coolantTempC,
-    'intake_air_temp_c': intakeAirTempC,
     'engine_load_pct': engineLoadPct,
     'throttle_pct': throttlePct,
-    'fuel_level_pct': fuelLevelPct,
-    'intake_manifold_pressure_kpa': intakeManifoldPressureKpa,
-    'fuel_pressure_kpa': fuelPressureKpa,
+    'intake_air_temp_c': intakeAirTempC,
+    'short_term_fuel_trim_b1': shortTermFuelTrimB1,
+    'long_term_fuel_trim_b1': longTermFuelTrimB1,
+    'o2_voltage_b1s1': o2VoltageB1S1,
     'battery_voltage': batteryVoltage,
+    'control_module_voltage': controlModuleVoltage,
+    'fuel_level_pct': fuelLevelPct,
     'run_time_sec': runTimeSec,
-    'maf_flow_gps': mafFlowGps,
-    'timing_advance_deg': timingAdvanceDeg,
-    'catalyst_temp_c': catalystTempC,
+    'distance_with_mil_km': distanceWithMilKm,
   };
 }
