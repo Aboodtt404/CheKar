@@ -1,21 +1,30 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
+
+import 'package:flutter_bluetooth_serial/flutter_bluetooth_serial.dart';
 
 import '../../models/obd_result.dart';
 
-/// On-device OBD-II scanner via WiFi ELM327 TCP socket.
+/// Transport mode for ELM327 connection.
+enum ObdTransport { wifi, bluetooth }
+
+/// On-device OBD-II scanner via ELM327 (WiFi TCP or Bluetooth SPP).
 ///
-/// Connects to a WiFi ELM327 adapter (typically 192.168.0.10:35000),
-/// runs 11 diagnostic commands, and returns parsed results.
-/// All parsing follows the public SAE J1979 / ISO 15031-5 standard.
+/// The ELM327 AT command protocol is identical over both transports —
+/// only the underlying connection changes.
 class ObdScanner {
   static const String defaultHost = '192.168.0.10';
   static const int defaultPort = 35000;
-  static const Duration connectTimeout = Duration(seconds: 5);
+  static const Duration connectTimeout = Duration(seconds: 8);
   static const Duration commandTimeout = Duration(seconds: 5);
 
-  Socket? _socket;
+  // Transport state
+  ObdTransport? _transport;
+  Socket? _tcpSocket;
+  BluetoothConnection? _btConnection;
+
   final StringBuffer _buffer = StringBuffer();
   Completer<String>? _responseCompleter;
 
@@ -24,41 +33,82 @@ class ObdScanner {
 
   // ── Connection ──────────────────────────────────────────────────────
 
-  Future<void> connect({String host = defaultHost, int port = defaultPort}) async {
-    _socket = await Socket.connect(host, port, timeout: connectTimeout);
-    _socket!.listen(
-      (data) {
-        final chunk = utf8.decode(data, allowMalformed: true);
-        _buffer.write(chunk);
-        if (chunk.contains('>')) {
-          _responseCompleter?.complete(_buffer.toString());
-          _buffer.clear();
-        }
-      },
+  /// Connect via WiFi TCP (classic ELM327 WiFi adapters).
+  Future<void> connectWifi({String host = defaultHost, int port = defaultPort}) async {
+    _transport = ObdTransport.wifi;
+    _tcpSocket = await Socket.connect(host, port, timeout: connectTimeout);
+    _tcpSocket!.listen(
+      _onData,
       onError: (e) => _responseCompleter?.completeError(e),
       onDone: () => _responseCompleter?.completeError('Connection closed'),
     );
   }
 
-  void disconnect() {
-    _socket?.destroy();
-    _socket = null;
+  /// Connect via Bluetooth SPP (classic Bluetooth ELM327 adapters).
+  Future<void> connectBluetooth(String macAddress) async {
+    _transport = ObdTransport.bluetooth;
+    _btConnection = await BluetoothConnection.toAddress(macAddress)
+        .timeout(connectTimeout, onTimeout: () {
+      throw TimeoutException('Bluetooth connection timed out');
+    });
+    _btConnection!.input?.listen(
+      _onData,
+      onError: (e) => _responseCompleter?.completeError(e),
+      onDone: () => _responseCompleter?.completeError('Connection closed'),
+    );
   }
 
-  bool get isConnected => _socket != null;
+  /// Backward-compatible connect (defaults to WiFi).
+  Future<void> connect({String host = defaultHost, int port = defaultPort}) async {
+    await connectWifi(host: host, port: port);
+  }
+
+  void disconnect() {
+    _tcpSocket?.destroy();
+    _tcpSocket = null;
+    _btConnection?.finish();
+    _btConnection = null;
+    _transport = null;
+  }
+
+  bool get isConnected => _tcpSocket != null || (_btConnection?.isConnected ?? false);
+
+  // ── Data handler (shared for both transports) ─────────────────────
+
+  void _onData(dynamic data) {
+    final String chunk;
+    if (data is Uint8List) {
+      chunk = utf8.decode(data, allowMalformed: true);
+    } else {
+      chunk = data.toString();
+    }
+    _buffer.write(chunk);
+    // ELM327 signals end of response with '>'
+    if (chunk.contains('>')) {
+      _responseCompleter?.complete(_buffer.toString());
+      _buffer.clear();
+    }
+  }
 
   // ── Send/Receive ───────────────────────────────────────────────────
 
   Future<String> _send(String command) async {
-    if (_socket == null) throw StateError('Not connected');
+    if (!isConnected) throw StateError('Not connected');
     _buffer.clear();
     _responseCompleter = Completer<String>();
-    _socket!.add(utf8.encode('$command\r'));
+
+    final bytes = utf8.encode('$command\r');
+    if (_transport == ObdTransport.bluetooth) {
+      _btConnection!.output.add(Uint8List.fromList(bytes));
+      await _btConnection!.output.allSent;
+    } else {
+      _tcpSocket!.add(bytes);
+    }
+
     final response = await _responseCompleter!.future.timeout(
       commandTimeout,
       onTimeout: () => '',
     );
-    // Clean response: strip echo, prompt, whitespace
     return response
         .replaceAll('>', '')
         .replaceAll(command, '')
@@ -112,45 +162,32 @@ class ObdScanner {
     String? obdCompliance;
     int? odometerKm;
 
-    // 1. VIN
     onStatus?.call('جاري قراءة رقم الشاسيه...');
     vin = await _readVin();
 
-    // 2. MIL status + DTC count
     onStatus?.call('جاري فحص لمبة المحرك...');
     final milResult = await _readMilStatus();
     milOn = milResult.$1;
     dtcCount = milResult.$2;
 
-    // 3. Stored DTCs
     onStatus?.call('جاري قراءة أكواد الأعطال...');
     storedDtcs = await _readDtcs('03');
-
-    // 4. Pending DTCs
     pendingDtcs = await _readDtcs('07');
 
-    // 5. Coolant temp
     onStatus?.call('جاري قراءة حرارة المحرك...');
     coolantTempC = await _readCoolantTemp();
 
-    // 6. Battery voltage
     onStatus?.call('جاري فحص البطارية...');
     batteryVoltage = await _readBatteryVoltage();
 
-    // 7. Distance with MIL on
     distanceWithMilKm = await _readTwoByteValue('0121');
 
-    // 8. Time since DTCs cleared
     onStatus?.call('جاري فحص تاريخ الأعطال...');
     timeSinceDtcClearedMin = await _readTwoByteValue('014E');
-
-    // 9. Warmups since DTCs cleared
     warmupsSinceDtcCleared = await _readSingleByteValue('0130');
 
-    // 10. OBD compliance
     obdCompliance = await _readObdCompliance();
 
-    // 11. Odometer (2019+ vehicles only)
     onStatus?.call('جاري قراءة العداد...');
     odometerKm = await _readOdometer();
 
@@ -174,17 +211,13 @@ class ObdScanner {
 
   // ── Individual PID Parsers ──────────────────────────────────────────
 
-  /// VIN: Mode 09 PID 02 — multi-frame 17 ASCII characters.
   Future<String?> _readVin() async {
     try {
       final raw = await _send('0902');
       if (_isError(raw)) return null;
-      // Extract hex bytes, skip headers and mode/PID bytes
       final hex = _extractDataBytes(raw);
       if (hex.length < 17) return null;
-      // VIN bytes are ASCII
       final vinChars = hex.take(17).map((b) => String.fromCharCode(b)).join();
-      // Validate: VIN is 17 alphanumeric chars
       if (RegExp(r'^[A-HJ-NPR-Z0-9]{17}$').hasMatch(vinChars)) return vinChars;
       return vinChars.length == 17 ? vinChars : null;
     } catch (_) {
@@ -192,7 +225,6 @@ class ObdScanner {
     }
   }
 
-  /// MIL status: Mode 01 PID 01 — byte A bit 7 = MIL, bits 0-6 = DTC count.
   Future<(bool, int)> _readMilStatus() async {
     try {
       final raw = await _send('0101');
@@ -206,7 +238,6 @@ class ObdScanner {
     }
   }
 
-  /// DTCs: Mode 03 (stored) or 07 (pending) — 2-byte pairs.
   Future<List<String>> _readDtcs(String command) async {
     try {
       final raw = await _send(command);
@@ -215,7 +246,6 @@ class ObdScanner {
       final bytes = _extractPidData(raw, expectedPrefix);
       if (bytes.isEmpty) return [];
       final dtcs = <String>[];
-      // Skip count byte, then read 2-byte pairs
       for (int i = 0; i + 1 < bytes.length; i += 2) {
         final code = _decodeDtc(bytes[i], bytes[i + 1]);
         if (code != 'P0000') dtcs.add(code);
@@ -226,7 +256,6 @@ class ObdScanner {
     }
   }
 
-  /// Coolant temp: Mode 01 PID 05 — single byte, value - 40 = °C.
   Future<double?> _readCoolantTemp() async {
     try {
       final raw = await _send('0105');
@@ -239,7 +268,6 @@ class ObdScanner {
     }
   }
 
-  /// Battery voltage: AT RV — returns string like "12.3V".
   Future<double?> _readBatteryVoltage() async {
     try {
       final raw = await _send('ATRV');
@@ -250,7 +278,6 @@ class ObdScanner {
     }
   }
 
-  /// Two-byte unsigned value: (A*256 + B).
   Future<int?> _readTwoByteValue(String command) async {
     try {
       final raw = await _send(command);
@@ -265,7 +292,6 @@ class ObdScanner {
     }
   }
 
-  /// Single byte value.
   Future<int?> _readSingleByteValue(String command) async {
     try {
       final raw = await _send(command);
@@ -280,7 +306,6 @@ class ObdScanner {
     }
   }
 
-  /// OBD compliance: Mode 01 PID 1C — lookup table.
   Future<String?> _readObdCompliance() async {
     try {
       final val = await _readSingleByteValue('011C');
@@ -291,8 +316,6 @@ class ObdScanner {
     }
   }
 
-  /// Odometer: Mode 01 PID A6 — 4 bytes, (A<<24+B<<16+C<<8+D)/10 km.
-  /// Only available on 2019+ vehicles.
   Future<int?> _readOdometer() async {
     try {
       final raw = await _send('01A6');
@@ -315,18 +338,14 @@ class ObdScanner {
       raw.contains('?') ||
       raw.isEmpty;
 
-  /// Extract data bytes after a known response prefix (e.g. "4101").
-  /// Handles multi-ECU responses (takes first valid one).
   List<int> _extractPidData(String raw, String prefix) {
     final hex = raw.replaceAll(' ', '');
-    // Find the prefix in the hex stream
     final idx = hex.indexOf(prefix);
     if (idx < 0) return [];
     final dataHex = hex.substring(idx + prefix.length);
     return _hexToBytes(dataHex);
   }
 
-  /// Extract all data bytes from a multi-frame response (for VIN).
   List<int> _extractDataBytes(String raw) {
     final parts = raw.split(' ').where((s) => s.isNotEmpty).toList();
     final bytes = <int>[];
@@ -334,11 +353,8 @@ class ObdScanner {
       final val = int.tryParse(part, radix: 16);
       if (val != null && val <= 0xFF) bytes.add(val);
     }
-    // Skip mode/PID overhead for VIN (09 02 01 header bytes)
-    // Find '49 02' pattern and skip
     for (int i = 0; i < bytes.length - 1; i++) {
       if (bytes[i] == 0x49 && bytes[i + 1] == 0x02) {
-        // Skip 49 02 XX (3 bytes) then read data
         final start = i + 3;
         if (start < bytes.length) {
           return bytes.sublist(start);
@@ -357,7 +373,6 @@ class ObdScanner {
     return bytes;
   }
 
-  /// Decode 2 bytes into a DTC code (P0xxx, C0xxx, B0xxx, U0xxx).
   String _decodeDtc(int byte1, int byte2) {
     const prefixes = ['P', 'C', 'B', 'U'];
     final prefix = prefixes[(byte1 >> 6) & 0x03];
@@ -381,4 +396,21 @@ class ObdScanner {
     17: 'EOBD (II)',
     18: 'EOBD (II) + OBD-II',
   };
+
+  // ── Bluetooth Helpers (static) ─────────────────────────────────────
+
+  /// Get list of paired Bluetooth devices.
+  static Future<List<BluetoothDevice>> getPairedDevices() async {
+    return await FlutterBluetoothSerial.instance.getBondedDevices();
+  }
+
+  /// Check if Bluetooth is enabled.
+  static Future<bool> isBluetoothEnabled() async {
+    return await FlutterBluetoothSerial.instance.isEnabled ?? false;
+  }
+
+  /// Request to enable Bluetooth.
+  static Future<bool> requestEnableBluetooth() async {
+    return await FlutterBluetoothSerial.instance.requestEnable() ?? false;
+  }
 }
