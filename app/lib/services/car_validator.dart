@@ -10,15 +10,17 @@ import 'package:tflite_flutter/tflite_flutter.dart';
 class CarValidator {
   static const String _modelPath = 'assets/models/mobilenetv3_small.tflite';
   static const int _inputSize = 224;
-  static const double _vehicleThreshold = 0.25;
+  static const double _vehicleThreshold = 0.15;
 
-  /// All ImageNet class indices that represent cars / wheeled vehicles.
+  /// ImageNet class indices for vehicles + car parts visible in close-ups.
   static const Set<int> _vehicleClasses = {
+    // Vehicles
     407, // ambulance
     436, // beach wagon / station wagon
     468, // cab / taxi
     511, // convertible
     555, // fire engine
+    565, // freight car
     569, // garbage truck
     609, // jeep
     627, // limousine
@@ -32,8 +34,15 @@ class CarValidator {
     757, // recreational vehicle / RV
     779, // school bus
     817, // sports car
+    829, // streetcar
     864, // tow truck
     867, // trailer truck
+    874, // trolleybus
+    // Car parts (visible in close-up shots)
+    475, // car mirror
+    479, // car wheel
+    581, // grille
+    753, // radiator
   };
 
   Interpreter? _interpreter;
